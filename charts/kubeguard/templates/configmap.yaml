@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kubeguard.fullname" . }}-policy
+  labels:
+    {{- include "kubeguard.labels" . | nindent 4 }}
+data:
+  profile.yaml: |
+    apiVersion: kubeguard.dev/v1alpha1
+    kind: PolicyProfile
+    metadata:
+      name: {{ .Values.policy.profile }}
+    spec:
+      rules:
+        # Rules will be loaded based on the profile name from the application defaults, 
+        # or can be overridden here.

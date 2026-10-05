@@ -1,0 +1,85 @@
+apiVersion: kubeguard.dev/v1alpha1
+kind: PolicyProfile
+metadata:
+  name: production
+  description: Production profile for KubeGuard (strict reliability rules)
+spec:
+  rules:
+    - id: KG-SEC-001
+      enabled: true
+      severity: BLOCK
+    - id: KG-SEC-002
+      enabled: true
+      severity: BLOCK
+    - id: KG-SEC-003
+      enabled: true
+      severity: BLOCK
+    - id: KG-SEC-004
+      enabled: true
+      severity: BLOCK
+    - id: KG-SEC-005
+      enabled: true
+      severity: BLOCK
+    - id: KG-SEC-006
+      enabled: true
+      severity: BLOCK
+    - id: KG-SEC-007
+      enabled: true
+      severity: BLOCK
+    - id: KG-SEC-008
+      enabled: true
+      severity: BLOCK
+    - id: KG-SEC-009
+      enabled: true
+      severity: BLOCK
+    - id: KG-SEC-010
+      enabled: true
+      severity: BLOCK
+    - id: KG-SEC-011
+      enabled: true
+      severity: BLOCK
+    - id: KG-SEC-012
+      enabled: true
+      severity: BLOCK
+    - id: KG-SEC-013
+      enabled: true
+      severity: BLOCK
+    - id: KG-SEC-014
+      enabled: true
+      severity: BLOCK
+    - id: KG-REL-001
+      enabled: true
+      severity: BLOCK
+    - id: KG-REL-002
+      enabled: true
+      severity: BLOCK
+    - id: KG-REL-003
+      enabled: true
+      severity: BLOCK
+    - id: KG-REL-004
+      enabled: true
+      severity: BLOCK
+    - id: KG-REL-005
+      enabled: true
+      severity: BLOCK
+    - id: KG-REL-006
+      enabled: true
+      severity: BLOCK
+    - id: KG-REL-007
+      enabled: true
+      severity: BLOCK
+    - id: KG-REL-008
+      enabled: true
+      severity: BLOCK
+    - id: KG-REL-009
+      enabled: true
+      severity: BLOCK
+    - id: KG-REL-010
+      enabled: true
+      severity: BLOCK
+    - id: KG-REL-011
+      enabled: true
+      severity: BLOCK
+    - id: KG-REL-012
+      enabled: true
+      severity: BLOCK

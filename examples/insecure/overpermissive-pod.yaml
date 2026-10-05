@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: overpermissive-pod
+spec:
+  hostNetwork: true
+  hostPID: true
+  hostIPC: true
+  containers:
+  - name: insecure-container
+    image: alpine:latest
+    securityContext:
+      capabilities:
+        add: ["SYS_ADMIN", "NET_ADMIN"]

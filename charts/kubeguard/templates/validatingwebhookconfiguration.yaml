@@ -1,0 +1,24 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "kubeguard.fullname" . }}
+  labels:
+    {{- include "kubeguard.labels" . | nindent 4 }}
+webhooks:
+  - name: validate.kubeguard.dev
+    clientConfig:
+      service:
+        name: {{ include "kubeguard.fullname" . }}
+        namespace: {{ .Release.Namespace }}
+        path: "/validate"
+      caBundle: "" # Injected by cert-manager or manual
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["apps", ""]
+        apiVersions: ["v1"]
+        resources: ["deployments", "statefulsets", "daemonsets", "pods"]
+    failurePolicy: {{ .Values.webhook.failurePolicy }}
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    namespaceSelector:
+      {{- toYaml .Values.webhook.namespaceSelector | nindent 6 }}

@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubeguard-controller
+  namespace: kubeguard-system
+  labels:
+    app.kubernetes.io/name: kubeguard
+    app.kubernetes.io/instance: kubeguard-prod
+    app.kubernetes.io/part-of: kubeguard
+    app.kubernetes.io/component: admission-controller
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubeguard
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubeguard
+    spec:
+      automountServiceAccountToken: true
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - kubeguard
+              topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: kubeguard
+        image: ghcr.io/burhan-21/kubeguard:0.1.0@sha256:7c90858e3f8ecaa19e346df9ef69e06c3a0b3fbf5b0c793ba6eb0e092106e6ef
+        imagePullPolicy: IfNotPresent
+        command:
+        - /kubeguard
+        args:
+        - admission
+        - --port=8443
+        - --tls-cert=/etc/tls/tls.crt
+        - --tls-key=/etc/tls/tls.key
+        - --mode=enforce
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        ports:
+        - name: https-webhook
+          containerPort: 8443
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 2
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 2
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 2
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 1
+          periodSeconds: 2
+          timeoutSeconds: 2
+          failureThreshold: 10
+        volumeMounts:
+        - name: webhook-certs
+          mountPath: /etc/tls
+          readOnly: true
+      volumes:
+      - name: webhook-certs
+        secret:
+          secretName: kubeguard-webhook-tls

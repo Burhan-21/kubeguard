@@ -1,0 +1,13 @@
+bin/
+binaries/
+vendor/
+.env
+*.exe
+coverage files
+coverage.out
+kubeconfig
+.idea/
+.vscode/
+*.pem
+*.key
+dist/

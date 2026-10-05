@@ -1,0 +1,6 @@
+KubeGuard is successfully installed!
+
+1. KubeGuard is now validating your deployments against best practices.
+2. Ensure you have populated the TLS Secret `{{ .Values.tls.secretName }}` with valid certificates for the admission webhook, or integrate with cert-manager.
+3. Check the logs of the KubeGuard pod to verify it is running correctly:
+   kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "kubeguard.name" . }}

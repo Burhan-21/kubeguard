@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kubeguard.fullname" . }}
+  labels:
+    {{- include "kubeguard.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "kubeguard.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "kubeguard.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "kubeguard.fullname" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - "webhook"
+            - "--tls-cert-file=/etc/webhook/certs/tls.crt"
+            - "--tls-private-key-file=/etc/webhook/certs/tls.key"
+            - "--policy-profile=/etc/webhook/config/profile.yaml"
+          ports:
+            - name: https
+              containerPort: 8443
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+            - name: policy-config
+              mountPath: /etc/webhook/config
+              readOnly: true
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: {{ .Values.tls.secretName }}
+        - name: policy-config
+          configMap:
+            name: {{ include "kubeguard.fullname" . }}-policy

@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: insecure-deployment
+spec:
+  template:
+    spec:
+      hostNetwork: true
+      containers:
+      - name: app
+        image: myapp:latest
+        securityContext:
+          privileged: true

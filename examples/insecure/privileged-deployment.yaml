@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: privileged-deployment
+  labels:
+    app: insecure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: insecure
+  template:
+    metadata:
+      labels:
+        app: insecure
+    spec:
+      containers:
+      - name: insecure-container
+        image: nginx:latest
+        securityContext:
+          privileged: true
+          runAsUser: 0

@@ -1,0 +1,74 @@
+replicaCount: 1
+
+image:
+  repository: kubeguard
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+    - ALL
+
+service:
+  type: ClusterIP
+  port: 443
+  targetPort: 8443
+
+webhook:
+  failurePolicy: Fail
+  namespaceSelector:
+    matchExpressions:
+      - key: kubeguard-injection
+        operator: NotIn
+        values:
+          - disabled
+
+tls:
+  secretName: kubeguard-tls
+
+policy:
+  profile: default
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 8443
+    scheme: HTTPS
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 8443
+    scheme: HTTPS
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

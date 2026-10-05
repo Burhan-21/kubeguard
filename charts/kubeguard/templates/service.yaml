@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kubeguard.fullname" . }}
+  labels:
+    {{- include "kubeguard.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort }}
+      protocol: TCP
+      name: https
+  selector:
+    {{- include "kubeguard.selectorLabels" . | nindent 4 }}
