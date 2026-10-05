@@ -2,13 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
 
 jobs:
-  lint:
-    name: Lint
+  lint-and-vet:
+    name: Lint & Vet
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,11 +16,20 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-      - name: Run lint
-        run: make lint
+          cache: true
+      - name: Verify Dependencies
+        run: |
+          go mod download
+          go mod tidy
+          git diff --exit-code go.mod go.sum || (echo "go.mod or go.sum is not tidy" && exit 1)
+      - name: Check Formatting
+        run: |
+          test -z "$(gofmt -l .)" || (echo "Unformatted files found:" && gofmt -l . && exit 1)
+      - name: Go Vet
+        run: go vet ./...
 
-  test:
-    name: Test
+  unit-and-race-tests:
+    name: Unit Tests & Race Detector
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,11 +37,12 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-      - name: Run tests
-        run: make test-race
+          cache: true
+      - name: Run Unit Tests with Race Detector
+        run: go test ./... -race -v -coverprofile=coverage.out
 
-  build:
-    name: Build
+  build-binary:
+    name: Build Binary & CLI Verification
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,36 +50,59 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-      - name: Build binary
-        run: make build
+          cache: true
+      - name: Build Binary
+        run: go build -v -o bin/kubeguard ./cmd/kubeguard
+      - name: Verify CLI Version
+        run: ./bin/kubeguard version
+      - name: Verify Self-Scan Execution
+        run: ./bin/kubeguard scan --profile policies/production.yaml examples/kubeguard-self-scan/kubeguard-deployment.yaml
 
   security-scan:
-    name: Security Scan
+    name: Code Vulnerability Scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-          
+          cache: true
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
-        
       - name: Run govulncheck
         run: govulncheck ./...
-
-      - name: Run Trivy vulnerability scanner
+      - name: Run Trivy FS Scanner
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: '.'
           format: 'sarif'
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy scan results to GitHub Security tab
+          output: 'trivy-fs-results.sarif'
+      - name: Upload SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: 'trivy-fs-results.sarif'
+
+  container-build-and-scan:
+    name: Container Build & Image Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Container Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: kubeguard:local
+      - name: Scan Container Image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'kubeguard:local'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
