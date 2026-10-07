@@ -125,3 +125,40 @@ func TestEvaluateAll(t *testing.T) {
 		t.Errorf("expected exit code 2, got %d", scanResult.ExitCode())
 	}
 }
+
+func TestLoadProfileValid(t *testing.T) {
+	profiles := []string{
+		"../../policies/default.yaml",
+		"../../policies/development.yaml",
+		"../../policies/production.yaml",
+		"../../policies/strict.yaml",
+	}
+
+	for _, p := range profiles {
+		prof, err := LoadProfile(p)
+		if err != nil {
+			t.Fatalf("failed to load valid profile %s: %v", p, err)
+		}
+		if prof.Metadata.Name == "" {
+			t.Errorf("profile %s missing metadata.name", p)
+		}
+		disabled, overrides := prof.BuildOverrides()
+		if len(prof.Spec.Rules) == 0 && len(disabled) == 0 && len(overrides) == 0 {
+			t.Errorf("profile %s has empty rules and overrides", p)
+		}
+	}
+}
+
+func TestLoadProfileNotFound(t *testing.T) {
+	_, err := LoadProfile("non-existent-profile.yaml")
+	if err == nil {
+		t.Errorf("expected error for non-existent profile, got nil")
+	}
+}
+
+func TestLoadProfileInvalidYAML(t *testing.T) {
+	_, err := LoadProfile("../../testdata/invalid.yaml")
+	if err == nil {
+		t.Errorf("expected error for invalid YAML profile, got nil")
+	}
+}
