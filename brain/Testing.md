@@ -21,3 +21,9 @@ Every security and reliability rule **MUST** include:
 - **Security Testing**: Verify that parser resource limits correctly block YAML bombs.
 - **Helm Tests**: Validate template rendering against multiple values variations.
 - **Container Tests**: Ensure the built Docker image runs as non-root and responds correctly to basic commands.
+
+## Verification Gate Distinction
+- **Unit-Level Exit-Code Contract**: Verified via `internal/findings/findings_test.go` (`0 = PASS`, `1 = WARN`, `2 = BLOCK`, `3 = TOOL ERROR`).
+- **CLI Runtime Exit-Code Verification**: Marked `NOT TESTED` until the compiled binary is executed in Ubuntu CI against live YAML fixtures.
+- **Rule Implementations**: 26/26 individual rules verified via Go rule-level unit tests (`security_test.go`, `reliability_test.go`).
+- **End-to-End CLI Pipeline**: Marked `NOT TESTED` until executed by the CI runner against sample manifests.

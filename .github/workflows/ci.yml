@@ -53,10 +53,56 @@ jobs:
           cache: true
       - name: Build Binary
         run: go build -v -o bin/kubeguard ./cmd/kubeguard
-      - name: Verify CLI Version
-        run: ./bin/kubeguard version
-      - name: Verify Self-Scan Execution
-        run: ./bin/kubeguard scan --profile policies/production.yaml examples/kubeguard-self-scan/kubeguard-deployment.yaml
+      - name: Verify CLI Help & Version
+        run: |
+          ./bin/kubeguard version
+          ./bin/kubeguard --help
+          ./bin/kubeguard scan --help
+          ./bin/kubeguard policy --help
+          ./bin/kubeguard admission --help
+      - name: Verify CLI Exit Codes (0=PASS, 1=WARN, 2=BLOCK, 3=TOOL_ERROR)
+        run: |
+          # 1. Clean manifest -> Exit 0 (PASS)
+          ./bin/kubeguard scan testdata/secure-deployment.yaml
+          echo "PASS test exit code: $?"
+
+          # 2. Warning manifest with --fail-on warn -> Exit 1 (WARN)
+          ./bin/kubeguard scan --fail-on warn testdata/warning-deployment.yaml || EXIT_CODE=$?
+          [ "$EXIT_CODE" -eq 1 ] || (echo "Expected exit 1 for WARN, got $EXIT_CODE" && exit 1)
+
+          # 3. Insecure manifest -> Exit 2 (BLOCK)
+          EXIT_CODE=0
+          ./bin/kubeguard scan testdata/insecure-deployment.yaml || EXIT_CODE=$?
+          [ "$EXIT_CODE" -eq 2 ] || (echo "Expected exit 2 for BLOCK, got $EXIT_CODE" && exit 1)
+
+          # 4. Invalid input -> Exit 3 (TOOL ERROR)
+          EXIT_CODE=0
+          ./bin/kubeguard scan non-existent-file.yaml || EXIT_CODE=$?
+          [ "$EXIT_CODE" -eq 3 ] || (echo "Expected exit 3 for TOOL ERROR, got $EXIT_CODE" && exit 1)
+      - name: Verify CLI Formats & Features
+        run: |
+          # JSON output
+          ./bin/kubeguard scan --output json testdata/secure-deployment.yaml | jq .
+          # SARIF output
+          ./bin/kubeguard scan --output sarif testdata/secure-deployment.yaml | jq .
+          # Multi-document scan
+          ./bin/kubeguard scan testdata/multi-document.yaml || true
+          # Directory scan
+          ./bin/kubeguard scan examples/secure/
+          # Profile selection self-scan
+          ./bin/kubeguard scan --profile policies/production.yaml examples/kubeguard-self-scan/kubeguard-deployment.yaml
+
+  helm-validation:
+    name: Helm Chart Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+      - name: Helm Lint
+        run: helm lint charts/kubeguard
+      - name: Helm Template Render
+        run: helm template kubeguard charts/kubeguard
 
   security-scan:
     name: Code Vulnerability Scan
