@@ -23,7 +23,7 @@ spec:
       labels:
         app.kubernetes.io/name: kubeguard
     spec:
-      automountServiceAccountToken: true
+      automountServiceAccountToken: false
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
