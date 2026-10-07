@@ -31,3 +31,5 @@ This ledger tracks the granular implementation tasks across KubeGuard's phased l
 | **KG-023** | KubeGuard Self-Scan | KG-018 | `examples/kubeguard-self-scan/*` | CLI scan verification | Hardened manifest passes own production policy | `COMPLETED` |
 | **KG-024** | GitHub Actions Pipeline | All | `.github/workflows/ci.yml` | GitHub Actions | Lint, race test, build, SARIF export | `COMPLETED` |
 | **KG-025** | Open Source Governance | All | `README.md`, `LICENSE`, `SECURITY.md`, etc. | Documentation review | Complete documentation matching implementation | `COMPLETED` |
+| **KG-026** | Local Runtime Toolchain Verification | KG-001 - KG-025 | Whole repository | `go test ./...` on host | Go 1.23.4 installed; `gofmt`, `go vet`, `go build`, unit tests for parser, policy, reporter, rules passed. SAC prevented local binary execution. | `COMPLETED` |
+| **KG-027** | CI-Based Authoritative Verification | KG-026 | `.github/workflows/ci.yml` | GitHub Actions / Ubuntu CI | Authoritative cloud CI execution for race detection, container builds, and security scans. Blocked pending GitHub repository creation/auth. | `BLOCKED` |
