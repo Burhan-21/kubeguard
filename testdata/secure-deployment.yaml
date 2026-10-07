@@ -3,16 +3,19 @@ kind: Deployment
 metadata:
   name: secure-deployment
 spec:
+  replicas: 3
   template:
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: app
-        image: myapp:1.2.3
+        image: myapp:1.2.3@sha256:104c7c5c54f2685f0f4f33d607e60b12
         securityContext:
           privileged: false
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+          runAsUser: 10001
         resources:
           requests:
             cpu: 100m
@@ -27,4 +30,8 @@ spec:
         readinessProbe:
           httpGet:
             path: /ready
+            port: 8080
+        startupProbe:
+          httpGet:
+            path: /healthz
             port: 8080

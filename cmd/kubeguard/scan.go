@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -118,7 +119,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 	}
 
 	// Exit code based on fail-on level
-	switch failOn {
+	switch strings.ToLower(failOn) {
 	case "warn":
 		if result.OverallResult == findings.SeverityWarn || result.OverallResult == findings.SeverityBlock {
 			os.Exit(result.ExitCode())
@@ -126,9 +127,6 @@ func runScan(cmd *cobra.Command, args []string) error {
 	case "block":
 		if result.OverallResult == findings.SeverityBlock {
 			os.Exit(2)
-		}
-		if result.OverallResult == findings.SeverityWarn {
-			os.Exit(1)
 		}
 	}
 
