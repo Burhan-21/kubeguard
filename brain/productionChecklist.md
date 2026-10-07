@@ -10,7 +10,7 @@ Every release must pass this checklist before deployment or tagging.
 |:---|:---:|:---|
 | **Build passes** | `PASS` | Compiled with Go 1.23.4: `go build ./...` and `go build -o bin/kubeguard.exe ./cmd/kubeguard` succeeded with exit code 0. |
 | **Gofmt & Go Vet** | `PASS` | `gofmt -l .` clean (0 diffs), `go vet ./...` clean with zero warnings/errors. |
-| **Unit tests pass** | `PARTIAL` | Executed with Go 1.23.4: `internal/parser` (5/5 PASS), `internal/policy` (5/5 PASS), `internal/reporter` (4/4 PASS), `internal/rules/reliability` (13/13 PASS), `internal/rules/security` (15/15 PASS), `internal/normalizer` (PASS). `internal/admission` compiled; local execution was blocked by Windows 11 Smart App Control policy. |
+| **Unit tests pass** | `PARTIAL` | Executed with Go 1.23.4: `cmd/kubeguard` (3/3 PASS), `internal/findings` (1/1 PASS), `internal/parser` (5/5 PASS), `internal/policy` (8/8 PASS), `internal/reporter` (4/4 PASS), `internal/rules/reliability` (13/13 PASS), `internal/rules/security` (15/15 PASS), `internal/normalizer` (PASS). `internal/admission` compiled; local test execution was blocked by Windows 11 Smart App Control policy. |
 | **Race detector passes** | `NOT TESTED` | `go test -race` requires CGO/gcc compiler on host or Linux CI runner. |
 | **Code security scan passes** | `NOT TESTED` | `govulncheck` / Trivy configured in `.github/workflows/ci.yml`. |
 | **Container scan passes** | `NOT TESTED` | Docker daemon not running in local environment; configured in CI. |
