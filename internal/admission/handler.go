@@ -8,7 +8,7 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	
+
 	"github.com/Burhan-21/kubeguard/internal/findings"
 	"github.com/Burhan-21/kubeguard/internal/normalizer"
 	"github.com/Burhan-21/kubeguard/internal/policy"
@@ -45,7 +45,7 @@ func (h *Handler) Handle(review *admissionv1.AdmissionReview) *admissionv1.Admis
 	}
 
 	scanResult := h.Engine.EvaluateAll([]*normalizer.NormalizedResource{norm})
-	
+
 	var blockMsgs []string
 	var warnMsgs []string
 

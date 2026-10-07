@@ -7,10 +7,12 @@ import (
 
 type PDBRule struct{}
 
-func (r *PDBRule) ID() string { return "KG-REL-008" }
+func (r *PDBRule) ID() string    { return "KG-REL-008" }
 func (r *PDBRule) Title() string { return "Missing PodDisruptionBudget" }
-func (r *PDBRule) Description() string { return "Workloads with multiple replicas should have a PodDisruptionBudget" }
-func (r *PDBRule) Category() string { return "reliability" }
+func (r *PDBRule) Description() string {
+	return "Workloads with multiple replicas should have a PodDisruptionBudget"
+}
+func (r *PDBRule) Category() string                   { return "reliability" }
 func (r *PDBRule) DefaultSeverity() findings.Severity { return findings.SeverityWarn }
 
 func (r *PDBRule) Evaluate(res *normalizer.NormalizedResource) []findings.Finding {

@@ -9,18 +9,24 @@ import (
 
 type CapabilitiesRule struct{}
 
-func (r *CapabilitiesRule) ID() string { return "KG-SEC-007" }
+func (r *CapabilitiesRule) ID() string    { return "KG-SEC-007" }
 func (r *CapabilitiesRule) Title() string { return "Dangerous Capabilities" }
-func (r *CapabilitiesRule) Description() string { return "Containers should not add dangerous capabilities" }
-func (r *CapabilitiesRule) Category() string { return "security" }
+func (r *CapabilitiesRule) Description() string {
+	return "Containers should not add dangerous capabilities"
+}
+func (r *CapabilitiesRule) Category() string                   { return "security" }
 func (r *CapabilitiesRule) DefaultSeverity() findings.Severity { return findings.SeverityWarn }
 
 func (r *CapabilitiesRule) Evaluate(res *normalizer.NormalizedResource) []findings.Finding {
-	if res.PodSpec == nil { return nil }
+	if res.PodSpec == nil {
+		return nil
+	}
 	var results []findings.Finding
-	
+
 	checkCaps := func(cName string, sc *corev1.SecurityContext, prefix string, i int) {
-		if sc == nil || sc.Capabilities == nil { return }
+		if sc == nil || sc.Capabilities == nil {
+			return
+		}
 		for _, cap := range sc.Capabilities.Add {
 			c := string(cap)
 			if c == "SYS_ADMIN" || c == "ALL" {
@@ -32,7 +38,7 @@ func (r *CapabilitiesRule) Evaluate(res *normalizer.NormalizedResource) []findin
 			}
 		}
 	}
-	
+
 	for i, c := range res.PodSpec.Containers {
 		checkCaps(c.Name, c.SecurityContext, "containers", i)
 	}

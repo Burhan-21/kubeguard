@@ -6,11 +6,10 @@ import (
 	"github.com/Burhan-21/kubeguard/internal/findings"
 	"github.com/Burhan-21/kubeguard/internal/normalizer"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-func boolPtr(b bool) *bool { return &b }
+func boolPtr(b bool) *bool    { return &b }
 func int64Ptr(i int64) *int64 { return &i }
 
 func makeResource(containers []corev1.Container, podSpecMod func(*corev1.PodSpec)) *normalizer.NormalizedResource {

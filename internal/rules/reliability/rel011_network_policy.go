@@ -7,10 +7,12 @@ import (
 
 type NetworkPolicyRule struct{}
 
-func (r *NetworkPolicyRule) ID() string { return "KG-REL-011" }
+func (r *NetworkPolicyRule) ID() string    { return "KG-REL-011" }
 func (r *NetworkPolicyRule) Title() string { return "Network Policy Recommended" }
-func (r *NetworkPolicyRule) Description() string { return "Workloads should be restricted by NetworkPolicies" }
-func (r *NetworkPolicyRule) Category() string { return "reliability" }
+func (r *NetworkPolicyRule) Description() string {
+	return "Workloads should be restricted by NetworkPolicies"
+}
+func (r *NetworkPolicyRule) Category() string                   { return "reliability" }
 func (r *NetworkPolicyRule) DefaultSeverity() findings.Severity { return findings.SeverityWarn }
 
 func (r *NetworkPolicyRule) Evaluate(res *normalizer.NormalizedResource) []findings.Finding {

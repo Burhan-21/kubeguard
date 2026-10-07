@@ -46,17 +46,17 @@ func LoadProfile(path string) (*PolicyProfile, error) {
 
 func (p *PolicyProfile) BuildOverrides() (disabledRules []string, severityOverrides map[string]findings.Severity) {
 	severityOverrides = make(map[string]findings.Severity)
-	
+
 	for _, r := range p.Spec.Rules {
 		if r.Enabled != nil && !*r.Enabled {
 			disabledRules = append(disabledRules, r.ID)
 			continue
 		}
-		
+
 		if r.Severity != nil {
 			severityOverrides[r.ID] = *r.Severity
 		}
 	}
-	
+
 	return disabledRules, severityOverrides
 }

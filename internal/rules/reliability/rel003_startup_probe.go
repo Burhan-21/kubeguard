@@ -8,14 +8,18 @@ import (
 
 type StartupProbeRule struct{}
 
-func (r *StartupProbeRule) ID() string { return "KG-REL-003" }
+func (r *StartupProbeRule) ID() string    { return "KG-REL-003" }
 func (r *StartupProbeRule) Title() string { return "Missing Startup Probe" }
-func (r *StartupProbeRule) Description() string { return "Containers with slow initialization should have a startup probe" }
-func (r *StartupProbeRule) Category() string { return "reliability" }
+func (r *StartupProbeRule) Description() string {
+	return "Containers with slow initialization should have a startup probe"
+}
+func (r *StartupProbeRule) Category() string                   { return "reliability" }
 func (r *StartupProbeRule) DefaultSeverity() findings.Severity { return findings.SeverityWarn }
 
 func (r *StartupProbeRule) Evaluate(res *normalizer.NormalizedResource) []findings.Finding {
-	if res.PodSpec == nil { return nil }
+	if res.PodSpec == nil {
+		return nil
+	}
 	var results []findings.Finding
 	for i, c := range res.PodSpec.Containers {
 		if c.StartupProbe == nil && c.LivenessProbe != nil {

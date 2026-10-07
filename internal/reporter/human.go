@@ -11,8 +11,9 @@ import (
 func ReportHuman(result *findings.ScanResult, w io.Writer) error {
 	useColor := false
 	if os.Getenv("NO_COLOR") == "" {
-		// Assuming it isatty for simplicity in this implementation
-		useColor = true
+		if f, ok := w.(*os.File); ok && (f == os.Stdout || f == os.Stderr) {
+			useColor = true
+		}
 	}
 
 	colorRed := "\033[31m"
@@ -52,9 +53,12 @@ func ReportHuman(result *findings.ScanResult, w io.Writer) error {
 			} else {
 				sevLabel = fmt.Sprintf("%-5s", f.Severity)
 				switch f.Severity {
-				case findings.SeverityBlock: blockCount++
-				case findings.SeverityWarn: warnCount++
-				case findings.SeverityPass: passCount++
+				case findings.SeverityBlock:
+					blockCount++
+				case findings.SeverityWarn:
+					warnCount++
+				case findings.SeverityPass:
+					passCount++
 				}
 			}
 			fmt.Fprintf(w, "  %s  %s  %s\n", sevLabel, f.RuleID, f.Message)

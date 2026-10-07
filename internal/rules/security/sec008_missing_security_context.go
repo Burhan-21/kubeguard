@@ -8,14 +8,20 @@ import (
 
 type MissingSecurityContextRule struct{}
 
-func (r *MissingSecurityContextRule) ID() string { return "KG-SEC-008" }
+func (r *MissingSecurityContextRule) ID() string    { return "KG-SEC-008" }
 func (r *MissingSecurityContextRule) Title() string { return "Missing Security Context" }
-func (r *MissingSecurityContextRule) Description() string { return "Containers should define a security context" }
+func (r *MissingSecurityContextRule) Description() string {
+	return "Containers should define a security context"
+}
 func (r *MissingSecurityContextRule) Category() string { return "security" }
-func (r *MissingSecurityContextRule) DefaultSeverity() findings.Severity { return findings.SeverityWarn }
+func (r *MissingSecurityContextRule) DefaultSeverity() findings.Severity {
+	return findings.SeverityWarn
+}
 
 func (r *MissingSecurityContextRule) Evaluate(res *normalizer.NormalizedResource) []findings.Finding {
-	if res.PodSpec == nil { return nil }
+	if res.PodSpec == nil {
+		return nil
+	}
 	var results []findings.Finding
 	for i, c := range res.PodSpec.Containers {
 		if c.SecurityContext == nil {

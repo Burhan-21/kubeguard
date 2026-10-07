@@ -29,8 +29,8 @@ type SarifDriver struct {
 }
 
 type SarifRule struct {
-	ID               string           `json:"id"`
-	ShortDescription SarifMessage     `json:"shortDescription"`
+	ID               string       `json:"id"`
+	ShortDescription SarifMessage `json:"shortDescription"`
 }
 
 type SarifResult struct {

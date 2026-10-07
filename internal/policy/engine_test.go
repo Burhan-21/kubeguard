@@ -8,15 +8,15 @@ import (
 )
 
 type mockRule struct {
-	id       string
-	severity findings.Severity
+	id        string
+	severity  findings.Severity
 	violation bool
 }
 
-func (m *mockRule) ID() string                          { return m.id }
-func (m *mockRule) Title() string                       { return "Mock Rule " + m.id }
-func (m *mockRule) Description() string                 { return "Mock description" }
-func (m *mockRule) Category() string                    { return "security" }
+func (m *mockRule) ID() string                         { return m.id }
+func (m *mockRule) Title() string                      { return "Mock Rule " + m.id }
+func (m *mockRule) Description() string                { return "Mock description" }
+func (m *mockRule) Category() string                   { return "security" }
 func (m *mockRule) DefaultSeverity() findings.Severity { return m.severity }
 func (m *mockRule) Evaluate(res *normalizer.NormalizedResource) []findings.Finding {
 	if m.violation {

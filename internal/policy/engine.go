@@ -39,13 +39,13 @@ func (e *Engine) Evaluate(resource *normalizer.NormalizedResource) []findings.Fi
 			continue
 		}
 		ruleFindings := rule.Evaluate(resource)
-		
+
 		for i := range ruleFindings {
 			if override, exists := e.overrides[rule.ID()]; exists {
 				ruleFindings[i].Severity = override
 			}
 		}
-		
+
 		allFindings = append(allFindings, ruleFindings...)
 	}
 
@@ -54,12 +54,12 @@ func (e *Engine) Evaluate(resource *normalizer.NormalizedResource) []findings.Fi
 
 func (e *Engine) EvaluateAll(resources []*normalizer.NormalizedResource) *findings.ScanResult {
 	result := &findings.ScanResult{}
-	
+
 	for _, res := range resources {
 		resFindings := e.Evaluate(res)
 		result.Findings = append(result.Findings, resFindings...)
 	}
-	
+
 	result.Summarize()
 	return result
 }

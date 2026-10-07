@@ -54,11 +54,11 @@ func (s *Server) serveValidate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := s.Handler.Handle(&review)
-	
+
 	review.Response = response
 	// The response needs to match the GVK of the request
 	review.SetGroupVersionKind(review.GroupVersionKind())
-	
+
 	respBytes, err := json.Marshal(review)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("could not marshal response: %v", err), http.StatusInternalServerError)

@@ -8,14 +8,16 @@ import (
 
 type ReadinessProbeRule struct{}
 
-func (r *ReadinessProbeRule) ID() string { return "KG-REL-001" }
-func (r *ReadinessProbeRule) Title() string { return "Missing Readiness Probe" }
-func (r *ReadinessProbeRule) Description() string { return "Containers should have a readiness probe" }
-func (r *ReadinessProbeRule) Category() string { return "reliability" }
+func (r *ReadinessProbeRule) ID() string                         { return "KG-REL-001" }
+func (r *ReadinessProbeRule) Title() string                      { return "Missing Readiness Probe" }
+func (r *ReadinessProbeRule) Description() string                { return "Containers should have a readiness probe" }
+func (r *ReadinessProbeRule) Category() string                   { return "reliability" }
 func (r *ReadinessProbeRule) DefaultSeverity() findings.Severity { return findings.SeverityWarn }
 
 func (r *ReadinessProbeRule) Evaluate(res *normalizer.NormalizedResource) []findings.Finding {
-	if res.PodSpec == nil { return nil }
+	if res.PodSpec == nil {
+		return nil
+	}
 	var results []findings.Finding
 	for i, c := range res.PodSpec.Containers {
 		if c.ReadinessProbe == nil {
