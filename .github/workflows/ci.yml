@@ -118,7 +118,7 @@ jobs:
           go-version: '1.23'
           cache: true
       - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest || (sleep 2 && go install golang.org/x/vuln/cmd/govulncheck@latest) || true
       - name: Run govulncheck
         run: govulncheck ./... || true
       - name: Run Trivy FS Scanner
@@ -334,3 +334,32 @@ jobs:
         if: always()
         run: |
           kind delete cluster --name kubeguard-test || true
+
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: System Environment Diagnostics
+        run: |
+          echo "=== CPU Info ==="
+          lscpu || cat /proc/cpuinfo | grep 'model name' | head -n 4
+          echo "=== Memory Info ==="
+          free -h
+          echo "=== OS Kernel ==="
+          uname -a
+          echo "=== Go Environment ==="
+          go version
+          go env
+
+      - name: Execute Performance Benchmark Suite
+        run: |
+          go test -v -run=TestPerformanceSuite -bench=. -benchmem ./test/benchmark/...
+

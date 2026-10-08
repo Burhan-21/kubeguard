@@ -18,9 +18,9 @@ Every release must pass this checklist before deployment or tagging.
 | **CLI table output verified** | `PASS` | Real executable `./bin/kubeguard scan` executed in Ubuntu CI; exit codes 0 (PASS), 1 (WARN), 2 (BLOCK), 3 (TOOL ERROR) verified. |
 | **JSON output verified** | `PASS` | Executable `./bin/kubeguard scan --output json` verified and parsed with `jq .` in Ubuntu CI. |
 | **SARIF output verified** | `PASS` | Executable `./bin/kubeguard scan --output sarif` verified and parsed with `jq .` against Oasis SARIF 2.1.0 schema in Ubuntu CI. |
-| **Admission controller verified** | `PARTIAL` | `AdmissionReview v1` handler unit-tested (enforce, warn, audit modes) under race detector in CI. Live cluster admission webhook pending Kubernetes cluster. |
-| **TLS configuration verified** | `NOT TESTED` | HTTPS listener implemented in `server.go`; live certificate generation/handshake pending cluster deployment. |
-| **RBAC reviewed** | `PASS` | Minimal `ClusterRole` and `ClusterRoleBinding` created in Helm chart, strictly restricted to admission review. |
+| **Admission controller verified** | `PASS` | Live admission controller verified on KinD cluster in GitHub Actions (Run `#37806478180`, Job 113412441486) with real API server interception for ALLOW, DENY (`KG-SEC-001`), WARN, malformed request handling (HTTP 400), and `failurePolicy: Fail`. |
+| **TLS configuration verified** | `PASS` | HTTPS server verified with live Kubernetes API server TLS handshakes using CA bundle and SAN certificates on port 443 -> 8443. |
+| **RBAC reviewed** | `PASS` | Minimal `ClusterRole` and `ClusterRoleBinding` created in Helm chart, verified via `kubectl auth can-i --list`. |
 | **Helm chart validated** | `PASS` | Executed in Ubuntu CI: `helm lint charts/kubeguard` (0 errors) and `helm template kubeguard charts/kubeguard` successfully rendered. |
 | **Documentation matches code** | `PASS` | Brain docs, README, and API contracts audited and synchronized with Go source code. |
 | **CHANGELOG updated** | `PASS` | `CHANGELOG.md` and `brain/changLog.md` synchronized for release v0.1.0. |
@@ -30,9 +30,9 @@ Every release must pass this checklist before deployment or tagging.
 ## Production Readiness Assessment
 
 - **Overall Status**: `PRODUCTION READY: NO`
-- **Verification Baseline**: Authoritative verification achieved on Ubuntu CI runner (Run `#37678101667`) covering compilation, linting, unit tests, race detector (9/9 packages), CLI exit codes (0, 1, 2, 3), Helm lint/template, Docker image build, Trivy FS/image scan, and govulncheck.
+- **Verification Baseline**: Authoritative verification achieved across both local Go toolchains and Ubuntu CI runners (Runs `#37678101667`, `#37802349306`, and `#37806478180`) covering compilation, linting, 55/55 unit tests, Linux race detector (9/9 packages), CLI exit codes (0, 1, 2, 3), Helm lint/template, Docker image build, Trivy FS/image scan, and live KinD Kubernetes v1.31 admission integration (ALLOW/DENY/WARN/failurePolicy/RBAC/TLS).
 - **Outstanding Verification Gates Required for Production Readiness**:
-  1. Live Kubernetes admission webhook integration in an active cluster (`kind` or live k8s environment).
-  2. Live TLS certificate rotation & webhook handshake validation.
-  3. Real performance & latency benchmarking under load (<100ms for 10 resources, <1s for 100, <10s for 1000).
+  1. Real performance & latency benchmarking under load (<100ms for 10 resources, <1s for 100, <10s for 1000).
+  2. Live TLS certificate rotation test.
+  3. Multi-platform release artifact generation.
 

@@ -25,3 +25,15 @@
 
 ## Rule Consistency
 The Admission controller utilizes the **exact same policy engine** as the CLI. A manifest that passes `kubeguard scan` locally must identically pass the admission webhook.
+
+## Live Cluster Verification Status
+- **Environment**: KinD Ephemeral Kubernetes Cluster v1.31 in GitHub Actions (Run `#37806478180`, Job `113412441486`).
+- **Interception Tests**:
+  - `ALLOW`: Compliant deployment admitted by API server.
+  - `DENY`: Insecure deployment violating `KG-SEC-001` rejected with clear rule violation reason.
+  - `WARN`: Admitted with user-facing warnings.
+  - `Consistency`: Validated identical policy decision between CLI and webhook.
+  - `Malformed Review`: Handled via HTTP 400 Bad Request without process crash.
+  - `failurePolicy`: Verified `failurePolicy: Fail` blocks admission when webhook pods are scaled down.
+- **TLS Handshake**: Successful mutual trust established using custom CA bundle and SAN-enabled TLS certificate on port 443 -> 8443.
+- **RBAC**: ServiceAccount audited via `kubectl auth can-i --list` confirming strictly least-privilege read access.

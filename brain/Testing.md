@@ -27,5 +27,5 @@ Every security and reliability rule **MUST** include:
 - **CLI Runtime Exit-Code Verification**: Verified (`PASS`) via Ubuntu CI execution of `./bin/kubeguard scan` against fixtures with assertions on exit codes 0, 1, 2, and 3.
 - **Rule Implementations**: 26/26 individual rules verified via Go rule-level unit tests under race detector (`security_test.go`, `reliability_test.go`).
 - **End-to-End CLI Pipeline**: Verified (`PASS`) via Ubuntu CI runner executing single, multi-doc, directory, and self-scan with JSON and SARIF validation.
-- **Live Kubernetes Integration**: `NOT TESTED` (no real Kubernetes API server or live admission webhook deployed to a live cluster).
+- **Live Kubernetes Integration**: Verified (`PASS`) via Ubuntu CI ephemeral KinD cluster running live Kubernetes API server with ValidatingWebhookConfiguration, TLS communication, ALLOW, DENY (KG-SEC-001), WARN, malformed request handling (HTTP 400), and failurePolicy: Fail verification.
 - **Performance Benchmarks**: `NOT MEASURED` (no latency benchmarks executed under load).
