@@ -186,14 +186,19 @@ jobs:
             ghcr.io/burhan-21/kubeguard:${{ steps.meta.outputs.tag }}
             ghcr.io/burhan-21/kubeguard:latest
 
+      - name: Pull Published Image for Verification
+        run: |
+          echo "=== Pulling published image from GHCR ==="
+          docker pull "ghcr.io/burhan-21/kubeguard:${{ steps.meta.outputs.tag }}"
+          echo "=== Published Image Digest ==="
+          docker inspect --format='{{index .RepoDigests 0}}' "ghcr.io/burhan-21/kubeguard:${{ steps.meta.outputs.tag }}"
+
       - name: Scan Published Image with Trivy
         uses: aquasecurity/trivy-action@master
-        env:
-          TRIVY_USERNAME: ${{ github.actor }}
-          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         with:
           image-ref: 'ghcr.io/burhan-21/kubeguard:${{ steps.meta.outputs.tag }}'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
+          github-pat: ${{ secrets.GITHUB_TOKEN }}
