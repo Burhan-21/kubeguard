@@ -11,7 +11,7 @@ webhooks:
         name: {{ include "kubeguard.fullname" . }}
         namespace: {{ .Release.Namespace }}
         path: "/validate"
-      caBundle: "" # Injected by cert-manager or manual
+      caBundle: {{ .Values.webhook.caBundle | default "" | quote }}
     rules:
       - operations: ["CREATE", "UPDATE"]
         apiGroups: ["apps", ""]

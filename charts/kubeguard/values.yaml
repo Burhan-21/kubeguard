@@ -32,17 +32,25 @@ service:
   port: 443
   targetPort: 8443
 
+admission:
+  mode: enforce
+
 webhook:
   failurePolicy: Fail
+  caBundle: ""
   namespaceSelector:
     matchExpressions:
-      - key: kubeguard-injection
+      - key: kubernetes.io/metadata.name
         operator: NotIn
         values:
-          - disabled
+          - kube-system
+          - kubeguard-system
 
 tls:
+  createSecret: false
   secretName: kubeguard-tls
+  cert: ""
+  key: ""
 
 policy:
   profile: default

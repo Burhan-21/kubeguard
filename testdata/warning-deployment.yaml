@@ -4,7 +4,13 @@ metadata:
   name: warning-deployment
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: warning-app
   template:
+    metadata:
+      labels:
+        app: warning-app
     spec:
       automountServiceAccountToken: false
       containers:

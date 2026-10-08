@@ -4,7 +4,13 @@ metadata:
   name: secure-deployment
 spec:
   replicas: 3
+  selector:
+    matchLabels:
+      app: secure-app
   template:
+    metadata:
+      labels:
+        app: secure-app
     spec:
       automountServiceAccountToken: false
       containers:

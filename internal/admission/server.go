@@ -56,8 +56,12 @@ func (s *Server) serveValidate(w http.ResponseWriter, r *http.Request) {
 	response := s.Handler.Handle(&review)
 
 	review.Response = response
-	// The response needs to match the GVK of the request
-	review.SetGroupVersionKind(review.GroupVersionKind())
+	if review.APIVersion == "" {
+		review.APIVersion = "admission.k8s.io/v1"
+	}
+	if review.Kind == "" {
+		review.Kind = "AdmissionReview"
+	}
 
 	respBytes, err := json.Marshal(review)
 	if err != nil {

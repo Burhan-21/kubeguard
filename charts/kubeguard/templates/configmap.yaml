@@ -11,6 +11,4 @@ data:
     metadata:
       name: {{ .Values.policy.profile }}
     spec:
-      rules:
-        # Rules will be loaded based on the profile name from the application defaults, 
-        # or can be overridden here.
+      rules: []

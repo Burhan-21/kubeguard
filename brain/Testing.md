@@ -24,6 +24,8 @@ Every security and reliability rule **MUST** include:
 
 ## Verification Gate Distinction
 - **Unit-Level Exit-Code Contract**: Verified via `internal/findings/findings_test.go` (`0 = PASS`, `1 = WARN`, `2 = BLOCK`, `3 = TOOL ERROR`).
-- **CLI Runtime Exit-Code Verification**: Marked `NOT TESTED` until the compiled binary is executed in Ubuntu CI against live YAML fixtures.
-- **Rule Implementations**: 26/26 individual rules verified via Go rule-level unit tests (`security_test.go`, `reliability_test.go`).
-- **End-to-End CLI Pipeline**: Marked `NOT TESTED` until executed by the CI runner against sample manifests.
+- **CLI Runtime Exit-Code Verification**: Verified (`PASS`) via Ubuntu CI execution of `./bin/kubeguard scan` against fixtures with assertions on exit codes 0, 1, 2, and 3.
+- **Rule Implementations**: 26/26 individual rules verified via Go rule-level unit tests under race detector (`security_test.go`, `reliability_test.go`).
+- **End-to-End CLI Pipeline**: Verified (`PASS`) via Ubuntu CI runner executing single, multi-doc, directory, and self-scan with JSON and SARIF validation.
+- **Live Kubernetes Integration**: `NOT TESTED` (no real Kubernetes API server or live admission webhook deployed to a live cluster).
+- **Performance Benchmarks**: `NOT MEASURED` (no latency benchmarks executed under load).

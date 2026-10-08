@@ -28,10 +28,12 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
-            - "webhook"
-            - "--tls-cert-file=/etc/webhook/certs/tls.crt"
-            - "--tls-private-key-file=/etc/webhook/certs/tls.key"
-            - "--policy-profile=/etc/webhook/config/profile.yaml"
+            - "admission"
+            - "--port=8443"
+            - "--tls-cert=/etc/webhook/certs/tls.crt"
+            - "--tls-key=/etc/webhook/certs/tls.key"
+            - "--mode={{ .Values.admission.mode | default "enforce" }}"
+            - "--profile=/etc/webhook/config/profile.yaml"
           ports:
             - name: https
               containerPort: 8443

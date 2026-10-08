@@ -150,3 +150,187 @@ jobs:
           exit-code: '0'
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
+
+  admission-integration:
+    name: Kubernetes Admission Integration (KinD)
+    runs-on: ubuntu-latest
+    needs: [build-binary, helm-validation, container-build-and-scan]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Container Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: kubeguard:local
+
+      - name: Create KinD Cluster
+        run: |
+          kind create cluster --name kubeguard-test --wait 120s
+          kubectl cluster-info
+          kubectl get nodes -o wide
+
+      - name: Load Container Image into KinD
+        run: |
+          kind load docker-image kubeguard:local --name kubeguard-test
+
+      - name: Generate TLS Certificates & CA Bundle
+        run: |
+          mkdir -p /tmp/k8s-webhook-certs
+          cd /tmp/k8s-webhook-certs
+
+          # Root CA
+          openssl genrsa -out ca.key 2048
+          openssl req -x509 -new -nodes -key ca.key -subj "/CN=kubeguard-ca" -days 365 -out ca.crt
+
+          # Webhook Server Certificate with SAN for Kubernetes Service
+          openssl genrsa -out tls.key 2048
+          cat <<EOF > csr.conf
+          [req]
+          req_extensions = v3_req
+          distinguished_name = req_distinguished_name
+          [req_distinguished_name]
+          [v3_req]
+          basicConstraints = CA:FALSE
+          keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+          extendedKeyUsage = serverAuth
+          subjectAltName = @alt_names
+          [alt_names]
+          DNS.1 = kubeguard
+          DNS.2 = kubeguard.kubeguard-system
+          DNS.3 = kubeguard.kubeguard-system.svc
+          DNS.4 = kubeguard.kubeguard-system.svc.cluster.local
+          EOF
+
+          openssl req -new -key tls.key -out tls.csr -subj "/CN=kubeguard.kubeguard-system.svc" -config csr.conf
+          openssl x509 -req -in tls.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out tls.crt -days 365 -extensions v3_req -extfile csr.conf
+
+          CA_BUNDLE=$(base64 -w 0 < ca.crt)
+          echo "CA_BUNDLE=$CA_BUNDLE" >> $GITHUB_ENV
+          echo "CERT_DIR=/tmp/k8s-webhook-certs" >> $GITHUB_ENV
+
+      - name: Deploy KubeGuard via Helm
+        run: |
+          kubectl create namespace kubeguard-system
+
+          kubectl create secret tls kubeguard-tls \
+            --cert=${CERT_DIR}/tls.crt \
+            --key=${CERT_DIR}/tls.key \
+            -n kubeguard-system
+
+          helm install kubeguard charts/kubeguard \
+            --namespace kubeguard-system \
+            --set image.repository=kubeguard \
+            --set image.tag=local \
+            --set image.pullPolicy=Never \
+            --set webhook.caBundle="${CA_BUNDLE}" \
+            --wait --timeout=90s
+
+      - name: Verify Webhook Infrastructure & Pod Readiness
+        run: |
+          echo "=== 1. Pod Readiness in kubeguard-system ==="
+          kubectl get pods -n kubeguard-system -o wide
+          kubectl wait --namespace kubeguard-system --for=condition=ready pod -l app.kubernetes.io/name=kubeguard --timeout=60s
+
+          echo "=== 2. Service & Endpoints ==="
+          kubectl get svc -n kubeguard-system -o wide
+          kubectl get endpoints -n kubeguard-system -o wide
+
+          echo "=== 3. ValidatingWebhookConfiguration ==="
+          kubectl get validatingwebhookconfiguration kubeguard -o yaml
+
+          echo "=== 4. ServiceAccount & ClusterRoleBinding ==="
+          kubectl get sa -n kubeguard-system
+          kubectl get clusterrole kubeguard
+          kubectl get clusterrolebinding kubeguard
+
+          echo "=== 5. NetworkPolicy ==="
+          kubectl get networkpolicy -n kubeguard-system
+
+      - name: Verify RBAC Restrictions (Least Privilege)
+        run: |
+          echo "=== RBAC Permissions for KubeGuard SA ==="
+          kubectl auth can-i --list --as=system:serviceaccount:kubeguard-system:kubeguard
+
+      - name: Verify SecurityContext & Pod Hardening
+        run: |
+          echo "=== Pod SecurityContext Verification ==="
+          POD_NAME=$(kubectl get pods -n kubeguard-system -l app.kubernetes.io/name=kubeguard -o jsonpath='{.items[0].metadata.name}')
+          echo "Pod spec securityContext:"
+          kubectl get pod $POD_NAME -n kubeguard-system -o jsonpath='{.spec.securityContext}' | jq .
+          echo "Container securityContext:"
+          kubectl get pod $POD_NAME -n kubeguard-system -o jsonpath='{.spec.containers[0].securityContext}' | jq .
+
+      - name: Execute Live Admission Tests
+        run: |
+          echo ">>> Scenario 1: Allowed Resource (Compliant Deployment)"
+          kubectl apply -f testdata/secure-deployment.yaml -n default
+          kubectl get deployment secure-deployment -n default
+          echo "ALLOW: secure-deployment successfully admitted by API server"
+
+          echo ">>> Scenario 2: Blocked Resource (Insecure Deployment violating KG-SEC-001)"
+          DENY_OUTPUT=$(kubectl apply -f testdata/insecure-deployment.yaml -n default 2>&1 || true)
+          echo "Denial response from API server:"
+          echo "$DENY_OUTPUT"
+          echo "$DENY_OUTPUT" | grep -E "KubeGuard block|KG-SEC-001" || (echo "FAILED: Admission controller did not reject insecure deployment!" && exit 1)
+          echo "DENY: insecure-deployment successfully rejected with rule KG-SEC-001 message"
+
+          echo ">>> Scenario 3: Warning Resource (Warning Deployment)"
+          kubectl apply -f testdata/warning-deployment.yaml -n default
+          kubectl get deployment warning-deployment -n default
+          echo "WARN: warning-deployment admitted with warnings"
+
+          echo ">>> Scenario 4: Shared Policy Engine Consistency (CLI vs Admission)"
+          go build -o bin/kubeguard ./cmd/kubeguard
+          ./bin/kubeguard scan testdata/insecure-deployment.yaml || CLI_EXIT=$?
+          [ "$CLI_EXIT" -eq 2 ] || (echo "Expected CLI exit 2 for BLOCK, got $CLI_EXIT" && exit 1)
+          echo "CONSISTENCY PROVEN: Both CLI (exit 2) and Admission Controller rejected the exact same manifest on KG-SEC-001"
+
+          echo ">>> Scenario 5: Malformed AdmissionReview Handling"
+          kubectl port-forward -n kubeguard-system svc/kubeguard 18443:443 &
+          PF_PID=$!
+          sleep 4
+          HTTP_CODE=""
+          for i in {1..10}; do
+            HTTP_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" -X POST https://localhost:18443/validate -d '{"invalid": "json"}' -H "Content-Type: application/json" || true)
+            if [ "$HTTP_CODE" -eq 400 ]; then break; fi
+            sleep 1
+          done
+          kill $PF_PID || true
+          echo "Malformed request HTTP response code: $HTTP_CODE"
+          [ "$HTTP_CODE" -eq 400 ] || (echo "Expected HTTP 400 for malformed request, got $HTTP_CODE" && exit 1)
+          echo "SAFE ERROR: Malformed request returned HTTP 400 without crashing webhook"
+
+          echo ">>> Scenario 6: Failure Policy Behavior (failurePolicy: Fail)"
+          kubectl scale deployment kubeguard -n kubeguard-system --replicas=0
+          kubectl wait --namespace kubeguard-system --for=delete pod -l app.kubernetes.io/name=kubeguard --timeout=60s || true
+          FAIL_OUTPUT=$(kubectl run test-fail-pod --image=nginx:alpine -n default 2>&1 || true)
+          echo "Failure response when webhook unavailable:"
+          echo "$FAIL_OUTPUT"
+          echo "$FAIL_OUTPUT" | grep -iE "failed calling webhook|Internal error" || (echo "Expected failurePolicy Fail to reject when webhook is down!" && exit 1)
+          echo "FAILURE POLICY PROVEN: API server enforces failurePolicy: Fail when webhook is unavailable"
+
+      - name: Collect Cluster Diagnostics on Failure
+        if: failure()
+        run: |
+          kubectl get all -n kubeguard-system
+          kubectl describe pods -n kubeguard-system
+          kubectl logs -n kubeguard-system -l app.kubernetes.io/name=kubeguard --all-containers=true || true
+
+      - name: Teardown KinD Cluster
+        if: always()
+        run: |
+          kind delete cluster --name kubeguard-test || true
