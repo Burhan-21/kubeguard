@@ -129,10 +129,16 @@ jobs:
           ```
           EOF
 
-          gh release create "$TAG" \
-            --title "KubeGuard $TAG" \
-            --notes-file dist/RELEASE_NOTES.md \
-            dist/kubeguard_* dist/checksums.txt
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists, updating assets with --clobber..."
+            gh release upload "$TAG" dist/kubeguard_* dist/checksums.txt --clobber
+          else
+            echo "Creating release $TAG..."
+            gh release create "$TAG" \
+              --title "KubeGuard $TAG" \
+              --notes-file dist/RELEASE_NOTES.md \
+              dist/kubeguard_* dist/checksums.txt
+          fi
 
       - name: Upload Release Artifacts to Workflow
         uses: actions/upload-artifact@v4
@@ -182,6 +188,9 @@ jobs:
 
       - name: Scan Published Image with Trivy
         uses: aquasecurity/trivy-action@master
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         with:
           image-ref: 'ghcr.io/burhan-21/kubeguard:${{ steps.meta.outputs.tag }}'
           format: 'table'
