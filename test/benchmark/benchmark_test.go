@@ -286,16 +286,19 @@ func TestPerformanceSuite(t *testing.T) {
 	// Warmup
 	_ = handler.Handle(review)
 
-	admissionIters := 100
+	admissionIters := 50
+	batchSize := 20
 	var admissionDurations []time.Duration
 	for i := 0; i < admissionIters; i++ {
 		t0 := time.Now()
-		resp := handler.Handle(review)
-		dur := time.Since(t0)
-		if !resp.Allowed {
-			t.Fatalf("admission handler unexpectedly rejected compliant deployment")
+		for b := 0; b < batchSize; b++ {
+			resp := handler.Handle(review)
+			if !resp.Allowed {
+				t.Fatalf("admission handler unexpectedly rejected compliant deployment")
+			}
 		}
-		admissionDurations = append(admissionDurations, dur)
+		perReviewDur := time.Since(t0) / time.Duration(batchSize)
+		admissionDurations = append(admissionDurations, perReviewDur)
 	}
 
 	admStats := calculateStats(admissionDurations, 1, 0, 0)

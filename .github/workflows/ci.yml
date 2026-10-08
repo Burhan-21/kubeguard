@@ -349,17 +349,23 @@ jobs:
 
       - name: System Environment Diagnostics
         run: |
-          echo "=== CPU Info ==="
-          lscpu || cat /proc/cpuinfo | grep 'model name' | head -n 4
-          echo "=== Memory Info ==="
-          free -h
-          echo "=== OS Kernel ==="
-          uname -a
-          echo "=== Go Environment ==="
-          go version
-          go env
+          echo "## Runner Environment Diagnostics" >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          echo "=== CPU Info ===" >> $GITHUB_STEP_SUMMARY
+          (lscpu | grep -E "Model name|CPU\(s\)|Thread|Core|Socket|MHz") >> $GITHUB_STEP_SUMMARY || cat /proc/cpuinfo | grep 'model name' | head -n 4 >> $GITHUB_STEP_SUMMARY || true
+          echo "=== Memory Info ===" >> $GITHUB_STEP_SUMMARY
+          free -h >> $GITHUB_STEP_SUMMARY
+          echo "=== OS Kernel ===" >> $GITHUB_STEP_SUMMARY
+          uname -a >> $GITHUB_STEP_SUMMARY
+          echo "=== Go Environment ===" >> $GITHUB_STEP_SUMMARY
+          go version >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Execute Performance Benchmark Suite
         run: |
-          go test -v -run=TestPerformanceSuite -bench=. -benchmem ./test/benchmark/...
+          go test -v -run=TestPerformanceSuite -bench=. -benchmem ./test/benchmark/... | tee benchmark_output.txt
+          echo "## Performance Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          cat benchmark_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
