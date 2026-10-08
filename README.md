@@ -152,7 +152,47 @@ spec:
 
 ## CLI Installation & Usage
 
-### Building from Source
+### 1. Prebuilt Binaries & Verification (Recommended)
+
+Download the official binary release for your OS and architecture from [GitHub Releases](https://github.com/Burhan-21/kubeguard/releases):
+
+| OS | Architecture | Binary Archive |
+|:---|:---|:---|
+| **Linux** | x86_64 (`amd64`) | `kubeguard_v0.1.0_linux_amd64.tar.gz` |
+| **Linux** | ARM64 (`arm64`) | `kubeguard_v0.1.0_linux_arm64.tar.gz` |
+| **macOS** | Intel (`amd64`) | `kubeguard_v0.1.0_darwin_amd64.tar.gz` |
+| **macOS** | Apple Silicon (`arm64`) | `kubeguard_v0.1.0_darwin_arm64.tar.gz` |
+| **Windows** | x86_64 (`amd64`) | `kubeguard_v0.1.0_windows_amd64.zip` |
+
+#### Download and Verify with SHA-256 Checksums:
+
+```bash
+VERSION="v0.1.0"
+
+# Download archive and checksum file
+curl -sSLO "https://github.com/Burhan-21/kubeguard/releases/download/${VERSION}/kubeguard_${VERSION}_linux_amd64.tar.gz"
+curl -sSLO "https://github.com/Burhan-21/kubeguard/releases/download/${VERSION}/checksums.txt"
+
+# Verify SHA-256 checksum
+sha256sum --check --ignore-missing checksums.txt
+
+# Extract and install
+tar -xzf "kubeguard_${VERSION}_linux_amd64.tar.gz"
+sudo mv kubeguard /usr/local/bin/
+```
+
+### 2. Container Image (GitHub Container Registry)
+
+Run KubeGuard directly without installing Go or local binaries:
+
+```bash
+docker pull ghcr.io/burhan-21/kubeguard:v0.1.0
+
+# Scan local manifests
+docker run --rm -v $(pwd):/work ghcr.io/burhan-21/kubeguard:v0.1.0 scan /work/manifests/
+```
+
+### 3. Building from Source
 
 ```bash
 git clone https://github.com/Burhan-21/kubeguard.git

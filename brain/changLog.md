@@ -22,6 +22,9 @@ All notable changes to KubeGuard will be documented in this file.
   - TLS HTTP server (`internal/admission/server.go`) with health and ready probes.
 - **Packaging & Delivery**:
   - Production Helm chart (`charts/kubeguard/`) with least-privilege RBAC and NetworkPolicy.
-  - Minimal non-root Dockerfile.
+  - Minimal non-root Dockerfile based on distroless debian12.
   - GitHub Actions CI workflow (`.github/workflows/ci.yml`).
   - KubeGuard self-scan validation (`examples/kubeguard-self-scan/`).
+  - Automated cross-platform release pipeline (`.github/workflows/release.yml`) for `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, and `windows/amd64`.
+  - SHA-256 cryptographic checksums (`checksums.txt`) and GitHub build provenance attestations.
+  - Container image repository published on GitHub Container Registry (`ghcr.io/burhan-21/kubeguard:v0.1.0`).

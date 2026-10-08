@@ -63,3 +63,9 @@
 - **Decision**: PolicyProfile YAML models are located in `internal/policy/profile.go` for v1. Root `api/` directory reserved for future CRD definitions (`api/v1alpha1/`) when controller-runtime CRDs are introduced.
 - **Reason**: Prevents premature external API exposure before profile schema stabilization.
 - **Status**: Accepted.
+
+## ADR-013: Multi-Platform Release Engineering and Cryptographic Provenance
+- **Context**: Need an automated, verifiable release pipeline producing cross-platform binaries and container images without supply-chain risk.
+- **Decision**: Use native Go cross-compilation with standard tooling (`go build`, `tar`, `zip`, `sha256sum`, GitHub CLI `gh release`, Docker buildx, GitHub artifact attestations) via `.github/workflows/release.yml`.
+- **Reason**: Avoids heavy external binary packaging dependencies that cause toolchain drift, ensures 100% auditable release steps in GitHub Actions, and produces verifiable SHA-256 checksums and SLSA build attestations.
+- **Status**: Accepted.

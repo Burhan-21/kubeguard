@@ -25,7 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Policy Profiles**:
   - `policies/default.yaml`, `policies/development.yaml`, `policies/production.yaml`, and `policies/strict.yaml`.
 - **Packaging & Delivery**:
-  - Minimal multi-stage non-root Dockerfile.
+  - Minimal multi-stage non-root Dockerfile based on distroless debian12.
   - Production-grade Helm chart with TLS, RBAC, NetworkPolicy, and ValidatingWebhookConfiguration.
   - GitHub Actions CI workflow with linting, race detection, vulnerability scanning, and SARIF upload.
   - Hardened self-scan manifest in `examples/kubeguard-self-scan/`.
+  - Automated cross-platform release pipeline (`.github/workflows/release.yml`) for `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, and `windows/amd64`.
+  - SHA-256 cryptographic checksums (`checksums.txt`) and GitHub build provenance attestations.
+  - Published container image repository on GitHub Container Registry (`ghcr.io/burhan-21/kubeguard:v0.1.0`).

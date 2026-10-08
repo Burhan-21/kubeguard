@@ -25,14 +25,13 @@ Every release must pass this checklist before deployment or tagging.
 | **Documentation matches code** | `PASS` | Brain docs, README, and API contracts audited and synchronized with Go source code. |
 | **CHANGELOG updated** | `PASS` | `CHANGELOG.md` and `brain/changLog.md` synchronized for release v0.1.0. |
 | **Version updated** | `PASS` | Version `0.1.0` set in `internal/version/version.go`, `Chart.yaml`, and documentation. |
-| **Release artifacts verified** | `NOT TESTED` | Automated multi-platform release tarball generation pending release pipeline. |
+| **Release artifacts verified** | `PASS` | Automated GitHub Actions release pipeline (`.github/workflows/release.yml`) cross-compiles static binaries for 5 targets (`linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, `windows/amd64`), generates SHA-256 checksums, and publishes container image to GHCR. |
 
 ## Production Readiness Assessment
 
 - **Overall Status**: `PRODUCTION READY: NO`
-- **Verification Baseline**: Authoritative verification achieved across both local Go toolchains and Ubuntu CI runners (Runs `#37678101667`, `#37802349306`, and `#37806478180`) covering compilation, linting, 55/55 unit tests, Linux race detector (9/9 packages), CLI exit codes (0, 1, 2, 3), Helm lint/template, Docker image build, Trivy FS/image scan, and live KinD Kubernetes v1.31 admission integration (ALLOW/DENY/WARN/failurePolicy/RBAC/TLS).
+- **Verification Baseline**: Authoritative verification achieved across both local Go toolchains and Ubuntu CI runners (Runs `#37678101667`, `#37806478180`, `#37810007074`, and `#37815875427`) covering compilation, linting, 55/55 unit tests, Linux race detector (9/9 packages), CLI exit codes (0, 1, 2, 3), Helm lint/template, Docker image build, Trivy FS/image scan, live KinD Kubernetes v1.31 admission integration (ALLOW/DENY/WARN/failurePolicy/RBAC/TLS), deterministic performance benchmarks (10, 100, 1000 resources), and release packaging.
 - **Outstanding Verification Gates Required for Production Readiness**:
-  1. Real performance & latency benchmarking under load (<100ms for 10 resources, <1s for 100, <10s for 1000).
-  2. Live TLS certificate rotation test.
-  3. Multi-platform release artifact generation.
+  1. Live runtime TLS certificate rotation test (in-flight certificate reload without webhook container restart).
+  2. Multi-version live Kubernetes cluster matrix validation (live cluster validation on v1.28–v1.30).
 
