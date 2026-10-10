@@ -333,10 +333,11 @@ kubeguard scan --profile policies/production.yaml examples/kubeguard-self-scan/k
 - **Production Readiness**: `PRODUCTION READY: NO` (Pre-release v0.1.0; automated multi-platform release artifacts, signing, and runtime TLS certificate rotation remain unverified).
 - **Policy Engine & Rules**: 14 Security rules and 12 Reliability rules implemented in Go with positive and negative test cases.
 - **Unit & Race Tests**: 55/55 unit tests passed with race detector (`go test -race ./...`) in Ubuntu CI.
-- **Cluster Integration**: Live admission integration verified on an ephemeral KinD Kubernetes v1.31 cluster in CI (TLS handshakes, CA bundle injection, ALLOW, DENY `KG-SEC-001`, WARN, malformed request handling, and `failurePolicy: Fail`).
+- **Cluster Integration**: Live admission integration empirically verified across a multi-version Kubernetes matrix (v1.28, v1.29, v1.30, v1.31) on ephemeral KinD clusters in CI (TLS handshakes, CA bundle injection, ALLOW, DENY `KG-SEC-001`, WARN, malformed request handling, `failurePolicy: Fail`, and in-flight dynamic TLS rotation without pod restart).
 - **Kubernetes Compatibility Boundary**:
-  - **Kubernetes v1.31**: Verified on live KinD cluster in CI.
-  - **Kubernetes v1.28–1.30**: NOT TESTED on live clusters (supported by API schema specifications, but unverified in live environments).
+  - **Kubernetes v1.28–v1.31**: **TESTED & PASSING** on live KinD clusters in CI with SHA-256 digest-pinned node images (`v1.28.15`, `v1.29.12`, `v1.30.8`, `v1.31.4`).
+  - **Kubernetes < v1.28**: NOT TESTED / Unsupported by design (uses AdmissionReview v1 and modern API conventions).
+
 - **Performance Benchmarks**:
   - 10 resources: $p_{50} = 1.89\text{ ms}$ (Target: $< 100\text{ ms}$)
   - 100 resources: $p_{50} = 23.42\text{ ms}$ (Target: $< 1\text{ s}$)

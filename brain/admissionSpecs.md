@@ -40,7 +40,12 @@
 The Admission controller utilizes the **exact same policy engine** as the CLI. A manifest that passes `kubeguard scan` locally must identically pass the admission webhook.
 
 ## Live Cluster Verification Status
-- **Environment**: KinD Ephemeral Kubernetes Cluster v1.31 in GitHub Actions (Run `#37806478180`, Job `113412441486`).
+- **Environment**: KinD Ephemeral Kubernetes Clusters across all supported minor versions in GitHub Actions (Run `#38053047708`):
+  - **Kubernetes v1.28**: `kindest/node:v1.28.15@sha256:a7c05c7ae043a0b8c818f5a06188bc2c4098f6cb59ca7d1856df00375d839251` (Job `114216141903`) — **PASS**
+  - **Kubernetes v1.29**: `kindest/node:v1.29.12@sha256:62c0672ba99a4afd7396512848d6fc382906b8f33349ae68fb1dbfe549f70dec` (Job `114216141953`) — **PASS**
+  - **Kubernetes v1.30**: `kindest/node:v1.30.8@sha256:17cd608b3971338d9180b00776cb766c50d0a0b6b904ab4ff52fd3fc5c6369bf` (Job `114216141959`) — **PASS**
+  - **Kubernetes v1.31**: `kindest/node:v1.31.4@sha256:2cb39f7295fe7eafee0842b1052a599a4fb0f8bcf3f83d96c7f4864c357c6c30` (Job `114216141962`) — **PASS**
+
 - **Interception Tests**:
   - `ALLOW`: Compliant deployment admitted by API server.
   - `DENY`: Insecure deployment violating `KG-SEC-001` rejected with clear rule violation reason.

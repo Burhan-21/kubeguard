@@ -4,7 +4,7 @@
 
 ## Core Technologies
 - **Language**: Go 1.23+
-- **Kubernetes Compatibility**: 1.28-1.31 (Note: Versions marked as NOT YET TESTED until explicitly verified)
+- **Kubernetes Compatibility**: 1.28-1.31 (Empirically verified on live KinD clusters in GitHub Actions CI Run #38053047708)
 
 ## Supported Resources
 - Deployment

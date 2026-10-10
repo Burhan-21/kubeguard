@@ -41,7 +41,8 @@ This ledger tracks the granular implementation tasks across KubeGuard's phased l
 | **KG-033** | Final Production Audit | KG-032 | Whole repository | Production Checklist & Runhooks Audit | Complete repository audit covering architecture, security boundaries, runhooks, checklist evidence synchronization, and final release gate determination. Concluded with PRODUCTION READY: NO. | `COMPLETED` |
 | **KG-034** | Reproducible Release Pipeline & Provenance | KG-033 | `.github/workflows/release.yml`, `Makefile`, `README.md`, `CHANGELOG.md` | Release Verification Suite | Automated multi-platform release workflow building 5 binary targets, SHA-256 checksums, GitHub Release, and GHCR container publishing. | `COMPLETED` |
 | **KG-035** | Dynamic TLS Certificate Rotation | KG-034 | `internal/admission/reloader.go`, `internal/admission/server.go`, `cmd/kubeguard/admission.go`, `charts/kubeguard/*`, `.github/workflows/ci.yml`, `testdata/*` | Unit & KinD Integration Tests | Dynamic in-memory TLS certificate reload without pod restart: atomic swap via `GetCertificate`, dual file/Kubernetes Secret watchers, fallback on invalid certs, zero data races under `-race`, and live KinD cluster rotation verification. | `COMPLETED` |
-| **KG-036** | Multi-Version Kubernetes Compatibility Matrix | KG-035 | `.github/workflows/ci.yml`, `brain/*.md`, `README.md` | Multi-Version KinD Integration Suite | Parameterized KinD admission integration matrix running all 12 admission scenarios across Kubernetes v1.28, v1.29, v1.30, and v1.31 with digest-pinned node images. | `IN PROGRESS` |
+| **KG-036** | Multi-Version Kubernetes Compatibility Matrix | KG-035 | `.github/workflows/ci.yml`, `brain/*.md`, `README.md` | Multi-Version KinD Integration Suite | Parameterized KinD admission integration matrix running all 12 admission scenarios across Kubernetes v1.28, v1.29, v1.30, and v1.31 with digest-pinned node images. Verified in CI Run #38053047708. | `COMPLETED` |
+
 
 
 

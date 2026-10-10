@@ -30,8 +30,9 @@ Every release must pass this checklist before deployment or tagging.
 ## Production Readiness Assessment
 
 - **Overall Status**: `PRODUCTION READY: NO`
-- **Verification Baseline**: Authoritative verification achieved across both local Go toolchains and Ubuntu CI runners covering compilation, linting, 62/62 unit tests, Linux race detector (9/9 packages), CLI exit codes (0, 1, 2, 3), Helm lint/template, Docker image build, Trivy FS/image scan, live KinD Kubernetes v1.31 admission integration (ALLOW/DENY/WARN/failurePolicy/RBAC/TLS), live in-flight TLS certificate rotation without pod restart, deterministic performance benchmarks (10, 100, 1000 resources), and release packaging.
+- **Verification Baseline**: Authoritative verification achieved across both local Go toolchains and Ubuntu CI runners covering compilation, linting, 62/62 unit tests, Linux race detector (9/9 packages), CLI exit codes (0, 1, 2, 3), Helm lint/template, Docker image build, Trivy FS/image scan, live KinD Kubernetes admission integration matrix across all supported minor versions (v1.28, v1.29, v1.30, v1.31) running 12 live scenarios each (ALLOW/DENY/WARN/failurePolicy/RBAC/TLS/Dynamic TLS Rotation without pod restart), deterministic performance benchmarks (10, 100, 1000 resources), and release packaging.
 - **Outstanding Verification Gate Required for Production Readiness**:
-  1. Multi-version live Kubernetes cluster matrix validation (live cluster validation on v1.28–v1.30).
+  1. High-availability webhook deployment (multi-replica active-active rollout with leader election / PDB) in live cluster environment.
+
 
 
