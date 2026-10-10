@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -63,13 +64,11 @@ func setupMockAdmissionServer(t *testing.T) (*admission.Server, string, func()) 
 	// Wait for server readiness
 	readyURL := fmt.Sprintf("https://127.0.0.1:%d/readyz", port)
 	client := &http.Client{
-		Timeout: 200 * time.Millisecond,
+		Timeout: 500 * time.Millisecond,
 		Transport: &http.Transport{
-			TLSClientConfig: nil, // server uses self-signed
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}
-	// For testing, accept self-signed
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = nil
 
 	ready := false
 	for i := 0; i < 30; i++ {

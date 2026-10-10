@@ -91,6 +91,8 @@ jobs:
           ./bin/kubeguard scan examples/secure/
           # Profile selection self-scan
           ./bin/kubeguard scan --profile policies/default.yaml examples/kubeguard-self-scan/kubeguard-deployment.yaml
+          # Load-test subcommand help
+          ./bin/kubeguard load-test --help
 
   helm-validation:
     name: Helm Chart Validation
