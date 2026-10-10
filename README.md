@@ -330,13 +330,17 @@ kubeguard scan --profile policies/production.yaml examples/kubeguard-self-scan/k
 
 ## Current Engineering Status & Transparency
 
-- **Production Readiness**: `PRODUCTION READY: NO` (Pre-release v0.1.0; automated multi-platform release artifacts, signing, and runtime TLS certificate rotation remain unverified).
+- **Production Readiness**: `PRODUCTION READY: NO` (Pre-release v0.1.1; multi-cluster federation and external load balancer benchmarks pending).
 - **Policy Engine & Rules**: 14 Security rules and 12 Reliability rules implemented in Go with positive and negative test cases.
-- **Unit & Race Tests**: 55/55 unit tests passed with race detector (`go test -race ./...`) in Ubuntu CI.
-- **Cluster Integration**: Live admission integration empirically verified across a multi-version Kubernetes matrix (v1.28, v1.29, v1.30, v1.31) on ephemeral KinD clusters in CI (TLS handshakes, CA bundle injection, ALLOW, DENY `KG-SEC-001`, WARN, malformed request handling, `failurePolicy: Fail`, and in-flight dynamic TLS rotation without pod restart).
+- **Unit & Race Tests**: 64 unit tests passed with race detector (`go test -race ./...`) in Ubuntu CI across all 9 Go packages with zero data races.
+- **Cluster Integration**: Live admission integration empirically verified across a multi-version Kubernetes matrix (v1.28, v1.29, v1.30, v1.31) on ephemeral KinD clusters in CI. Validated ALLOW, DENY `KG-SEC-001`, WARN, malformed request handling, `failurePolicy: Fail`, in-flight dynamic TLS rotation without pod restart, active-active 2-replica HA, PDB enforcement, single-replica disruption continuity, automatic replacement recovery, zero-downtime rolling update, and in-tree Prometheus metrics.
+- **High Availability & Observability**:
+  - **Active-Active Multi-Replica**: Default `replicaCount: 2` with `RollingUpdate` strategy (`maxSurge: 1`, `maxUnavailable: 0`) and `PodDisruptionBudget` (`minAvailable: 1`).
+  - **In-Tree Prometheus Metrics**: Exposed on `/metrics` tracking request counts by decision, latency total, policy errors, certificate reload status, and certificate expiration.
 - **Kubernetes Compatibility Boundary**:
   - **Kubernetes v1.28–v1.31**: **TESTED & PASSING** on live KinD clusters in CI with SHA-256 digest-pinned node images (`v1.28.15`, `v1.29.12`, `v1.30.8`, `v1.31.4`).
   - **Kubernetes < v1.28**: NOT TESTED / Unsupported by design (uses AdmissionReview v1 and modern API conventions).
+
 
 - **Performance Benchmarks**:
   - 10 resources: $p_{50} = 1.89\text{ ms}$ (Target: $< 100\text{ ms}$)

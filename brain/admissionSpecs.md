@@ -40,19 +40,23 @@
 The Admission controller utilizes the **exact same policy engine** as the CLI. A manifest that passes `kubeguard scan` locally must identically pass the admission webhook.
 
 ## Live Cluster Verification Status
-- **Environment**: KinD Ephemeral Kubernetes Clusters across all supported minor versions in GitHub Actions (Run `#38053047708`):
-  - **Kubernetes v1.28**: `kindest/node:v1.28.15@sha256:a7c05c7ae043a0b8c818f5a06188bc2c4098f6cb59ca7d1856df00375d839251` (Job `114216141903`) — **PASS**
-  - **Kubernetes v1.29**: `kindest/node:v1.29.12@sha256:62c0672ba99a4afd7396512848d6fc382906b8f33349ae68fb1dbfe549f70dec` (Job `114216141953`) — **PASS**
-  - **Kubernetes v1.30**: `kindest/node:v1.30.8@sha256:17cd608b3971338d9180b00776cb766c50d0a0b6b904ab4ff52fd3fc5c6369bf` (Job `114216141959`) — **PASS**
-  - **Kubernetes v1.31**: `kindest/node:v1.31.4@sha256:2cb39f7295fe7eafee0842b1052a599a4fb0f8bcf3f83d96c7f4864c357c6c30` (Job `114216141962`) — **PASS**
+- **Environment**: KinD Ephemeral Kubernetes Clusters across all supported minor versions in GitHub Actions (Run `#38062629539`):
+  - **Kubernetes v1.28**: `kindest/node:v1.28.15@sha256:a7c05c7ae043a0b8c818f5a06188bc2c4098f6cb59ca7d1856df00375d839251` (Job `114244138935`) — **PASS**
+  - **Kubernetes v1.29**: `kindest/node:v1.29.12@sha256:62c0672ba99a4afd7396512848d6fc382906b8f33349ae68fb1dbfe549f70dec` (Job `114244138890`) — **PASS**
+  - **Kubernetes v1.30**: `kindest/node:v1.30.8@sha256:17cd608b3971338d9180b00776cb766c50d0a0b6b904ab4ff52fd3fc5c6369bf` (Job `114244138995`) — **PASS**
+  - **Kubernetes v1.31**: `kindest/node:v1.31.4@sha256:2cb39f7295fe7eafee0842b1052a599a4fb0f8bcf3f83d96c7f4864c357c6c30` (Job `114244138897`) — **PASS**
 
 - **Interception Tests**:
   - `ALLOW`: Compliant deployment admitted by API server.
   - `DENY`: Insecure deployment violating `KG-SEC-001` rejected with clear rule violation reason.
   - `WARN`: Admitted with user-facing warnings.
   - `Consistency`: Validated identical policy decision between CLI and webhook.
+  - `Observability (/metrics)`: In-tree Prometheus metrics exposed on `/metrics` tracking request totals by decision, latency total, policy errors, certificate reload counts, and certificate expiration.
   - `Malformed Review`: Handled via HTTP 400 Bad Request without process crash.
-  - `Dynamic TLS Rotation`: Validated in-memory reload upon Secret update from Cert A to Cert B; verified zero pod restarts (`restartCount: 0`); confirmed live API server interception with rotated certificate; verified fallback retention upon invalid secret update.
-  - `failurePolicy`: Verified `failurePolicy: Fail` blocks admission when webhook pods are scaled down.
+  - `Dynamic TLS Rotation`: Validated in-memory reload upon Secret update from Cert A to Cert B across all replicas; verified zero pod restarts (`restartCount: 0`); confirmed live API server interception with rotated certificate; verified fallback retention upon invalid secret update.
+  - `Multi-Replica HA`: Verified active-active 2-replica deployment, PodDisruptionBudget (`minAvailable: 1`, `disruptionsAllowed >= 1`), single-replica termination continuity without admission downtime, and automatic pod replacement recovery.
+  - `Zero-Downtime Rolling Update`: Verified admission continuity across `kubectl rollout restart deployment/kubeguard` with `maxSurge: 1`, `maxUnavailable: 0`.
+  - `failurePolicy`: Verified `failurePolicy: Fail` blocks admission when webhook pods are scaled down to 0.
 - **TLS Handshake**: Successful mutual trust established using custom CA bundle and SAN-enabled TLS certificate on port 443 -> 8443.
 - **RBAC**: ServiceAccount audited via `kubectl auth can-i --list` confirming strictly least-privilege read access, with namespaced `Role` restricting Secret access to `get, watch` on `kubeguard-tls` only.
+
