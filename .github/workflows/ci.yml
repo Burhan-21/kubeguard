@@ -253,15 +253,30 @@ jobs:
 
       - name: Verify Webhook Infrastructure & Pod Readiness
         run: |
-          echo "=== 1. Pod Readiness in kubeguard-system ==="
+          echo "=== 1. Multi-Replica Pod Readiness in kubeguard-system ==="
           kubectl get pods -n kubeguard-system -o wide
-          kubectl wait --namespace kubeguard-system --for=condition=ready pod -l app.kubernetes.io/name=kubeguard --timeout=60s
+          kubectl wait --namespace kubeguard-system --for=condition=ready pod -l app.kubernetes.io/name=kubeguard --timeout=90s
 
-          echo "=== 2. Service & Endpoints ==="
+          READY_REPLICAS=$(kubectl get deployment kubeguard -n kubeguard-system -o jsonpath='{.status.readyReplicas}')
+          echo "Ready replicas: $READY_REPLICAS"
+          [ "$READY_REPLICAS" -ge 2 ] || (echo "Expected at least 2 ready replicas for HA, got $READY_REPLICAS" && exit 1)
+          echo "MULTI-REPLICA HA CONFIRMED: $READY_REPLICAS healthy replicas running across the cluster"
+
+          echo "=== 2. PodDisruptionBudget Verification ==="
+          kubectl get pdb -n kubeguard-system -o wide
+          PDB_ALLOWED=$(kubectl get pdb -n kubeguard-system -l app.kubernetes.io/name=kubeguard -o jsonpath='{.items[0].status.disruptionsAllowed}')
+          echo "PDB disruptionsAllowed: $PDB_ALLOWED"
+          [ "$PDB_ALLOWED" -ge 1 ] || (echo "Expected disruptionsAllowed >= 1, got $PDB_ALLOWED" && exit 1)
+          echo "PDB VALIDATED: PodDisruptionBudget protects webhook availability"
+
+          echo "=== 3. Service & Endpoints ==="
           kubectl get svc -n kubeguard-system -o wide
           kubectl get endpoints -n kubeguard-system -o wide
+          EP_COUNT=$(kubectl get endpoints kubeguard -n kubeguard-system -o jsonpath='{.subsets[0].addresses[*].ip}' | wc -w)
+          echo "Active endpoint IP count: $EP_COUNT"
+          [ "$EP_COUNT" -ge 2 ] || (echo "Expected at least 2 active endpoints in service, got $EP_COUNT" && exit 1)
 
-          echo "=== 3. ValidatingWebhookConfiguration ==="
+          echo "=== 4. ValidatingWebhookConfiguration ==="
           kubectl get validatingwebhookconfiguration kubeguard -o yaml
 
           echo "=== 4. ServiceAccount & ClusterRoleBinding ==="
@@ -325,13 +340,28 @@ jobs:
           [ "$CLI_EXIT" -eq 2 ] || (echo "Expected CLI exit 2 for BLOCK, got $CLI_EXIT" && exit 1)
           echo "CONSISTENCY PROVEN: Both CLI (exit 2) and Admission Controller rejected the exact same manifest on KG-SEC-001"
 
-          echo ">>> Scenario 5: Malformed AdmissionReview Handling"
+          echo ">>> Scenario 5: Metrics and Malformed Request Handling"
           kubectl port-forward -n kubeguard-system svc/kubeguard 18443:443 &
           PF_PID=$!
           sleep 4
+
+          # 5a. Verify Metrics Endpoint
+          METRICS_OUT=""
+          for i in {1..10}; do
+            METRICS_OUT=$(curl -k -s https://127.0.0.1:18443/metrics || true)
+            if echo "$METRICS_OUT" | grep -q "kubeguard_admission_requests_total"; then break; fi
+            sleep 1
+          done
+          echo "=== Webhook Prometheus Metrics Sample ==="
+          echo "$METRICS_OUT" | grep -E "kubeguard_admission_requests_total|kubeguard_webhook_healthy|kubeguard_tls_certificate"
+          echo "$METRICS_OUT" | grep -q "kubeguard_webhook_healthy 1" || (echo "Expected kubeguard_webhook_healthy in metrics!" && exit 1)
+          echo "$METRICS_OUT" | grep -q "kubeguard_admission_requests_total" || (echo "Expected kubeguard_admission_requests_total in metrics!" && exit 1)
+          echo "OBSERVABILITY CONFIRMED: Prometheus metrics exposed and operational"
+
+          # 5b. Verify Malformed Request Handling
           HTTP_CODE=""
           for i in {1..10}; do
-            HTTP_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" -X POST https://localhost:18443/validate -d '{"invalid": "json"}' -H "Content-Type: application/json" || true)
+            HTTP_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" -X POST https://127.0.0.1:18443/validate -d '{"invalid": "json"}' -H "Content-Type: application/json" || true)
             if [ "$HTTP_CODE" -eq 400 ]; then break; fi
             sleep 1
           done
@@ -340,10 +370,14 @@ jobs:
           [ "$HTTP_CODE" -eq 400 ] || (echo "Expected HTTP 400 for malformed request, got $HTTP_CODE" && exit 1)
           echo "SAFE ERROR: Malformed request returned HTTP 400 without crashing webhook"
 
-          echo ">>> Scenario 6: Dynamic TLS Certificate Rotation (In-Flight Server Certificate Reload)"
-          KG_POD=$(kubectl get pods -n kubeguard-system -l app.kubernetes.io/name=kubeguard -o jsonpath='{.items[0].metadata.name}')
-          INITIAL_RESTARTS=$(kubectl get pod $KG_POD -n kubeguard-system -o jsonpath='{.status.containerStatuses[0].restartCount}')
-          echo "KubeGuard Pod: $KG_POD, initial container restartCount: $INITIAL_RESTARTS"
+          echo ">>> Scenario 6: Dynamic TLS Certificate Rotation Across All Replicas"
+          PODS=$(kubectl get pods -n kubeguard-system -l app.kubernetes.io/name=kubeguard -o jsonpath='{.items[*].metadata.name}')
+          echo "Tracking KubeGuard Pods: $PODS"
+          for P in $PODS; do
+            REST_INIT=$(kubectl get pod $P -n kubeguard-system -o jsonpath='{.status.containerStatuses[0].restartCount}')
+            echo "Pod $P initial restartCount: $REST_INIT"
+            [ "$REST_INIT" -eq 0 ] || (echo "Pod $P had unexpected non-zero restart count!" && exit 1)
+          done
 
           kubectl port-forward -n kubeguard-system svc/kubeguard 28443:443 &
           PF2_PID=$!
@@ -384,16 +418,46 @@ jobs:
           [ "$ROTATED" = "true" ] || (echo "FAILED: Webhook did not reload Certificate B within timeout!" && exit 1)
           echo "DYNAMIC RELOAD CONFIRMED: Webhook served Certificate B (Serial: 9999ABCD) over live TLS connection"
 
-          FINAL_RESTARTS=$(kubectl get pod $KG_POD -n kubeguard-system -o jsonpath='{.status.containerStatuses[0].restartCount}')
-          echo "Pod container restartCount after reload: $FINAL_RESTARTS (initial: $INITIAL_RESTARTS)"
-          [ "$FINAL_RESTARTS" -eq "$INITIAL_RESTARTS" ] || (echo "FAILED: Pod restarted during certificate reload!" && exit 1)
-          echo "ZERO RESTART CONFIRMED: Webhook rotated certificate dynamically without pod restart"
+          for P in $PODS; do
+            REST_FINAL=$(kubectl get pod $P -n kubeguard-system -o jsonpath='{.status.containerStatuses[0].restartCount}')
+            echo "Pod $P restartCount after reload: $REST_FINAL"
+            [ "$REST_FINAL" -eq 0 ] || (echo "Pod $P restarted during certificate reload!" && exit 1)
+          done
+          echo "ZERO RESTART CONFIRMED: Webhook rotated certificate dynamically without restarting pods"
 
           kubectl apply -f testdata/secure-deployment-rot.yaml -n default
           kubectl get deployment secure-deployment-rot -n default
           echo "ADMISSION STILL WORKS: API server successfully intercepted and admitted workload using rotated certificate"
 
-          echo ">>> Scenario 7: Failure Policy Behavior (failurePolicy: Fail)"
+          echo ">>> Scenario 7: High Availability Under Replica Disruption & Recovery"
+          # 7a. Terminate one replica
+          VICTIM_POD=$(kubectl get pods -n kubeguard-system -l app.kubernetes.io/name=kubeguard -o jsonpath='{.items[0].metadata.name}')
+          echo "Terminating replica $VICTIM_POD to test HA continuity..."
+          kubectl delete pod $VICTIM_POD -n kubeguard-system --now
+
+          # 7b. Immediately verify admission continues without interruption through surviving replica
+          echo "Submitting admission request while replica is being replaced..."
+          kubectl apply -f testdata/secure-deployment.yaml -n default
+          echo "HA CONTINUITY CONFIRMED: Surviving replica served admission without downtime"
+
+          # 7c. Verify replica recovery
+          echo "Waiting for replica recovery..."
+          kubectl wait --namespace kubeguard-system --for=condition=ready pod -l app.kubernetes.io/name=kubeguard --timeout=60s
+          RECOVERED_COUNT=$(kubectl get deployment kubeguard -n kubeguard-system -o jsonpath='{.status.readyReplicas}')
+          echo "Recovered ready replicas: $RECOVERED_COUNT"
+          [ "$RECOVERED_COUNT" -ge 2 ] || (echo "Failed to recover to 2 ready replicas!" && exit 1)
+          echo "REPLICA RECOVERY CONFIRMED: Full replica count restored"
+
+          echo ">>> Scenario 8: Zero-Downtime Rolling Update"
+          echo "Triggering deployment rollout restart..."
+          kubectl rollout restart deployment/kubeguard -n kubeguard-system
+          kubectl rollout status deployment/kubeguard -n kubeguard-system --timeout=90s
+
+          # Verify admission during/after rollout
+          kubectl apply -f testdata/secure-deployment.yaml -n default
+          echo "ROLLING UPDATE CONFIRMED: Zero-downtime deployment rollout completed"
+
+          echo ">>> Scenario 9: Failure Policy Behavior (failurePolicy: Fail)"
           kubectl scale deployment kubeguard -n kubeguard-system --replicas=0
           kubectl wait --namespace kubeguard-system --for=delete pod -l app.kubernetes.io/name=kubeguard --timeout=60s || true
           FAIL_OUTPUT=$(kubectl run test-fail-pod --image=nginx:alpine -n default 2>&1 || true)

@@ -120,16 +120,19 @@ func (r *CertReloader) applyLocked(certPEM, keyPEM []byte, source string) error 
 	// Parse TLS key pair
 	tlsCert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
+		DefaultMetrics().IncCertReloadFailure()
 		return fmt.Errorf("invalid x509 key pair: %w", err)
 	}
 
 	if len(tlsCert.Certificate) == 0 {
+		DefaultMetrics().IncCertReloadFailure()
 		return errors.New("parsed TLS certificate contains zero certificates in chain")
 	}
 
 	// Parse and validate leaf certificate
 	leaf, err := x509.ParseCertificate(tlsCert.Certificate[0])
 	if err != nil {
+		DefaultMetrics().IncCertReloadFailure()
 		return fmt.Errorf("failed to parse x509 leaf certificate: %w", err)
 	}
 	tlsCert.Leaf = leaf
@@ -137,6 +140,9 @@ func (r *CertReloader) applyLocked(certPEM, keyPEM []byte, source string) error 
 	// Atomically swap certificate pointer and hash
 	r.currentCert.Store(&tlsCert)
 	r.certHash.Store(&newHash)
+
+	DefaultMetrics().IncCertReloadSuccess()
+	DefaultMetrics().SetCertExpiry(leaf.NotAfter)
 
 	log.Printf("[TLS] Certificate successfully loaded from %s (Subject: %s, Serial: %s, NotAfter: %s)",
 		source, leaf.Subject.CommonName, leaf.SerialNumber.String(), leaf.NotAfter.Format(time.RFC3339))

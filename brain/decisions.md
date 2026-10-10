@@ -82,4 +82,15 @@
 - **Reason**: Reuses existing end-to-end integration logic without duplication, ensures isolated parallel testing on clean ephemeral clusters, pins immutable node image digests for deterministic reproducibility, and converts unverified compatibility claims into empirical, automated evidence.
 - **Status**: Accepted.
 
+## ADR-016: Stateless Active-Active Multi-Replica Webhook HA and In-Tree Observability
+- **Context**: The admission webhook previously ran as a single pod (`replicaCount: 1`) without a PodDisruptionBudget, rolling update strategy guarantees, or operational metrics. Pod restarts or disruptions risked blocking cluster admissions when `failurePolicy: Fail` was configured.
+- **Decision**: Implemented active-active multi-replica HA without leader election:
+  1. Defaulted `replicaCount: 2` with `RollingUpdate` strategy (`maxSurge: 1`, `maxUnavailable: 0`) and `PodDisruptionBudget` (`minAvailable: 1`).
+  2. Maintained pure statelessness: each replica loads identical policy profile ConfigMaps and independently watches the TLS Secret via `client-go` and mounted volumes.
+  3. Added lightweight, dependency-free Prometheus metrics (`/metrics`) using atomic counters and gauges tracking request decisions, duration, policy errors, certificate reload status, and certificate expiration.
+- **Reason**: Validating admission webhooks do not write mutable state to clusters, rendering leader election unnecessary overhead. Running active-active replicas behind the Kubernetes ClusterIP Service provides true zero-downtime admission availability, seamless rolling restarts, and resilient survival of individual pod terminations.
+- **Status**: Accepted.
+
+
+
 
