@@ -76,3 +76,10 @@
 - **Reason**: Zero lock contention during high-throughput TLS handshakes, instant sub-second rotation upon Kubernetes Secret modification, automatic fallback to file-based rotation when running outside cluster, and retention of the last known-good certificate if corrupted/invalid certificate material is encountered. CA bundle and CA rotation remain decoupled and explicitly distinct from server certificate rotation.
 - **Status**: Accepted.
 
+## ADR-015: Multi-Version Kubernetes Compatibility Matrix Testing via KinD
+- **Context**: KubeGuard claimed compatibility with Kubernetes v1.28–v1.31 in documentation, but only v1.31 was verified on a live cluster in CI. A production-ready policy engine must prove compatibility across supported Kubernetes minor versions against actual API server and admission webhook behaviors.
+- **Decision**: Introduce a parameterized CI matrix in GitHub Actions running the complete admission integration test suite across four pinned KinD node images (`v1.28.15`, `v1.29.12`, `v1.30.8`, `v1.31.4`) with SHA-256 digest pinning. Each matrix entry executes the identical 12-scenario admission test suite, including TLS handshakes, ALLOW/DENY, warning events, RBAC restrictions, failurePolicy behavior, and dynamic TLS rotation without pod restart.
+- **Reason**: Reuses existing end-to-end integration logic without duplication, ensures isolated parallel testing on clean ephemeral clusters, pins immutable node image digests for deterministic reproducibility, and converts unverified compatibility claims into empirical, automated evidence.
+- **Status**: Accepted.
+
+
