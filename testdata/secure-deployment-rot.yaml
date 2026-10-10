@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secure-deployment-rot
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: secure-app-rot
+  template:
+    metadata:
+      labels:
+        app: secure-app-rot
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: app
+        image: myapp:1.2.3@sha256:104c7c5c54f2685f0f4f33d607e60b12
+        securityContext:
+          privileged: false
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 10001
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: 8080

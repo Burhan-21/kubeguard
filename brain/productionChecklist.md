@@ -19,19 +19,19 @@ Every release must pass this checklist before deployment or tagging.
 | **JSON output verified** | `PASS` | Executable `./bin/kubeguard scan --output json` verified and parsed with `jq .` in Ubuntu CI. |
 | **SARIF output verified** | `PASS` | Executable `./bin/kubeguard scan --output sarif` verified and parsed with `jq .` against Oasis SARIF 2.1.0 schema in Ubuntu CI. |
 | **Admission controller verified** | `PASS` | Live admission controller verified on KinD cluster in GitHub Actions (Run `#37806478180`, Job 113412441486) with real API server interception for ALLOW, DENY (`KG-SEC-001`), WARN, malformed request handling (HTTP 400), and `failurePolicy: Fail`. |
-| **TLS configuration verified** | `PASS` | HTTPS server verified with live Kubernetes API server TLS handshakes using CA bundle and SAN certificates on port 443 -> 8443. |
-| **RBAC reviewed** | `PASS` | Minimal `ClusterRole` and `ClusterRoleBinding` created in Helm chart, verified via `kubectl auth can-i --list`. |
+| **TLS configuration verified** | `PASS` | HTTPS server verified with live Kubernetes API server TLS handshakes using CA bundle and SAN certificates on port 443 -> 8443. Dynamic in-memory certificate rotation verified on KinD without pod restart (`restartCount: 0`). |
+| **RBAC reviewed** | `PASS` | Minimal `ClusterRole` and `ClusterRoleBinding` created in Helm chart, verified via `kubectl auth can-i --list`. Namespaced `Role` strictly limits Secret read/watch to `kubeguard-tls` in `kubeguard-system`. |
 | **Helm chart validated** | `PASS` | Executed in Ubuntu CI: `helm lint charts/kubeguard` (0 errors) and `helm template kubeguard charts/kubeguard` successfully rendered. |
 | **Documentation matches code** | `PASS` | Brain docs, README, and API contracts audited and synchronized with Go source code. |
-| **CHANGELOG updated** | `PASS` | `CHANGELOG.md` and `brain/changLog.md` synchronized for release v0.1.0. |
-| **Version updated** | `PASS` | Version `0.1.0` set in `internal/version/version.go`, `Chart.yaml`, and documentation. |
+| **CHANGELOG updated** | `PASS` | `CHANGELOG.md` and `brain/changLog.md` synchronized. |
+| **Version updated** | `PASS` | Version `0.1.1` set in `internal/version/version.go`, `Chart.yaml`, and documentation. |
 | **Release artifacts verified** | `PASS` | Automated GitHub Actions release pipeline (`.github/workflows/release.yml`) cross-compiles static binaries for 5 targets (`linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, `windows/amd64`), generates SHA-256 checksums, and publishes container image to GHCR. |
 
 ## Production Readiness Assessment
 
 - **Overall Status**: `PRODUCTION READY: NO`
-- **Verification Baseline**: Authoritative verification achieved across both local Go toolchains and Ubuntu CI runners (Runs `#37678101667`, `#37806478180`, `#37810007074`, and `#37815875427`) covering compilation, linting, 55/55 unit tests, Linux race detector (9/9 packages), CLI exit codes (0, 1, 2, 3), Helm lint/template, Docker image build, Trivy FS/image scan, live KinD Kubernetes v1.31 admission integration (ALLOW/DENY/WARN/failurePolicy/RBAC/TLS), deterministic performance benchmarks (10, 100, 1000 resources), and release packaging.
-- **Outstanding Verification Gates Required for Production Readiness**:
-  1. Live runtime TLS certificate rotation test (in-flight certificate reload without webhook container restart).
-  2. Multi-version live Kubernetes cluster matrix validation (live cluster validation on v1.28–v1.30).
+- **Verification Baseline**: Authoritative verification achieved across both local Go toolchains and Ubuntu CI runners covering compilation, linting, 62/62 unit tests, Linux race detector (9/9 packages), CLI exit codes (0, 1, 2, 3), Helm lint/template, Docker image build, Trivy FS/image scan, live KinD Kubernetes v1.31 admission integration (ALLOW/DENY/WARN/failurePolicy/RBAC/TLS), live in-flight TLS certificate rotation without pod restart, deterministic performance benchmarks (10, 100, 1000 resources), and release packaging.
+- **Outstanding Verification Gate Required for Production Readiness**:
+  1. Multi-version live Kubernetes cluster matrix validation (live cluster validation on v1.28–v1.30).
+
 

@@ -69,3 +69,10 @@
 - **Decision**: Use native Go cross-compilation with standard tooling (`go build`, `tar`, `zip`, `sha256sum`, GitHub CLI `gh release`, Docker buildx, GitHub artifact attestations) via `.github/workflows/release.yml`.
 - **Reason**: Avoids heavy external binary packaging dependencies that cause toolchain drift, ensures 100% auditable release steps in GitHub Actions, and produces verifiable SHA-256 checksums and SLSA build attestations.
 - **Status**: Accepted.
+
+## ADR-014: Dynamic TLS Certificate Rotation via In-Memory Reloader and Dual Watchers
+- **Context**: Admission webhook previously required pod restarts to pick up renewed TLS certificates. Operational downtime or handshake failures occurred during certificate expiration or rotation.
+- **Decision**: Implemented `internal/admission/CertReloader` using standard library `tls.Config.GetCertificate` backed by lock-free `sync/atomic.Pointer[tls.Certificate]`. Supported dual watch mechanisms: periodic file stat/read for mounted Secret volumes and Kubernetes Secret API watching via `client-go`. RBAC permissions strictly scoped to namespaced `Role` granting `get, watch` on the specific TLS secret name.
+- **Reason**: Zero lock contention during high-throughput TLS handshakes, instant sub-second rotation upon Kubernetes Secret modification, automatic fallback to file-based rotation when running outside cluster, and retention of the last known-good certificate if corrupted/invalid certificate material is encountered. CA bundle and CA rotation remain decoupled and explicitly distinct from server certificate rotation.
+- **Status**: Accepted.
+

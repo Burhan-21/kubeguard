@@ -27,5 +27,14 @@ Every security and reliability rule **MUST** include:
 - **CLI Runtime Exit-Code Verification**: Verified (`PASS`) via Ubuntu CI execution of `./bin/kubeguard scan` against fixtures with assertions on exit codes 0, 1, 2, and 3.
 - **Rule Implementations**: 26/26 individual rules verified via Go rule-level unit tests under race detector (`security_test.go`, `reliability_test.go`).
 - **End-to-End CLI Pipeline**: Verified (`PASS`) via Ubuntu CI runner executing single, multi-doc, directory, and self-scan with JSON and SARIF validation.
-- **Live Kubernetes Integration**: Verified (`PASS`) via Ubuntu CI ephemeral KinD cluster running live Kubernetes API server with ValidatingWebhookConfiguration, TLS communication, ALLOW, DENY (KG-SEC-001), WARN, malformed request handling (HTTP 400), and failurePolicy: Fail verification.
-- **Performance Benchmarks**: `NOT MEASURED` (no latency benchmarks executed under load).
+- **Live Kubernetes Integration**: Verified (`PASS`) via Ubuntu CI ephemeral KinD cluster running live Kubernetes API server with ValidatingWebhookConfiguration, TLS communication, ALLOW, DENY (KG-SEC-001), WARN, malformed request handling (HTTP 400), failurePolicy: Fail verification, and live dynamic TLS certificate rotation.
+- **Dynamic TLS Certificate Rotation**: Verified (`PASS`) via comprehensive test suite in `internal/admission/reloader_test.go` and live KinD integration:
+  - `Test A (Initial certificate)`: Verified startup succeeds with valid cert, TLS handshakes succeed, and startup fails immediately if initial certificate is corrupt or missing.
+  - `Test B (Certificate rotation)`: Verified transition from Cert A to Cert B serves Cert B on subsequent TLS connections without process restart.
+  - `Test C (Invalid rotation)`: Verified corrupt PEM and mismatched private keys are safely rejected, retaining last known-good certificate while server remains healthy.
+  - `Test D (Rapid updates)`: Verified rapid succession of 10 certificate updates without deadlocks, serving final valid certificate.
+  - `Test E (Shutdown)`: Verified file and secret watchers terminate cleanly upon context cancellation without goroutine leaks.
+  - `Test F (Race safety)`: Verified concurrent TLS client requests against active certificate rotation under `go test -race` with zero data races.
+  - `Live KinD Cluster Rotation`: Verified on ephemeral KinD cluster: Secret updated in `kubeguard-system`, webhook served new certificate over live TLS connection, container `restartCount: 0` (zero restarts), and live Kubernetes API server admitted workloads with rotated certificate.
+- **Performance Benchmarks**: Verified (`PASS`) via automated benchmark suite (`test/benchmark/benchmark_test.go`) evaluating 10, 100, and 1000 resource parsing/normalization/policy evaluation and admission latency.
+

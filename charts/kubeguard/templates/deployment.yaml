@@ -32,6 +32,8 @@ spec:
             - "--port=8443"
             - "--tls-cert=/etc/webhook/certs/tls.crt"
             - "--tls-key=/etc/webhook/certs/tls.key"
+            - "--tls-secret-name={{ .Values.tls.secretName }}"
+            - "--tls-secret-namespace={{ .Release.Namespace }}"
             - "--mode={{ .Values.admission.mode | default "enforce" }}"
             - "--profile=/etc/webhook/config/profile.yaml"
           ports:

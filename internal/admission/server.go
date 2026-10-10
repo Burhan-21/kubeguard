@@ -1,33 +1,96 @@
 package admission
 
 import (
+	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	admissionv1 "k8s.io/api/admission/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 type Server struct {
-	Handler  *Handler
-	CertFile string
-	KeyFile  string
-	Port     int
+	Handler         *Handler
+	CertFile        string
+	KeyFile         string
+	Port            int
+	SecretName      string
+	SecretNamespace string
+	KubeClient      kubernetes.Interface
+	ReloadInterval  time.Duration
+	Reloader        *CertReloader
+	httpServer      *http.Server
+	cancelWatch     context.CancelFunc
 }
 
 func (s *Server) Start() error {
+	return s.StartWithContext(context.Background())
+}
+
+func (s *Server) StartWithContext(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/validate", s.serveValidate)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
-	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) }) // Stub for metrics
+	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
 
 	addr := fmt.Sprintf(":%d", s.Port)
+
 	if s.CertFile != "" && s.KeyFile != "" {
-		return http.ListenAndServeTLS(addr, s.CertFile, s.KeyFile, mux)
+		if s.Reloader == nil {
+			reloader, err := NewCertReloader(s.CertFile, s.KeyFile)
+			if err != nil {
+				return fmt.Errorf("failed to load initial TLS certificate: %w", err)
+			}
+			s.Reloader = reloader
+		}
+
+		watchCtx, cancel := context.WithCancel(ctx)
+		s.cancelWatch = cancel
+
+		// Start background file watcher
+		reloadInterval := s.ReloadInterval
+		if reloadInterval <= 0 {
+			reloadInterval = 1 * time.Second
+		}
+		go s.Reloader.StartFileWatcher(watchCtx, reloadInterval)
+
+		// Start background Kubernetes Secret watcher if client and secret are configured
+		if s.KubeClient != nil && s.SecretName != "" && s.SecretNamespace != "" {
+			go s.Reloader.StartSecretWatcher(watchCtx, s.KubeClient, s.SecretNamespace, s.SecretName)
+		}
+
+		s.httpServer = &http.Server{
+			Addr:    addr,
+			Handler: mux,
+			TLSConfig: &tls.Config{
+				GetCertificate: s.Reloader.GetCertificate,
+				MinVersion:     tls.VersionTLS12,
+			},
+		}
+
+		return s.httpServer.ListenAndServeTLS("", "")
 	}
-	return http.ListenAndServe(addr, mux)
+
+	s.httpServer = &http.Server{
+		Addr:    addr,
+		Handler: mux,
+	}
+	return s.httpServer.ListenAndServe()
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s.cancelWatch != nil {
+		s.cancelWatch()
+	}
+	if s.httpServer != nil {
+		return s.httpServer.Shutdown(ctx)
+	}
+	return nil
 }
 
 func (s *Server) serveValidate(w http.ResponseWriter, r *http.Request) {

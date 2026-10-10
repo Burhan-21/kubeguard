@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Dynamic TLS Certificate Rotation (KG-035)**:
+  - In-memory dynamic TLS certificate reloader (`internal/admission/CertReloader`) using `crypto/tls.Config.GetCertificate` with lock-free atomic pointer storage (`sync/atomic.Pointer[tls.Certificate]`).
+  - Dual watch mechanisms: periodic file watcher for volume-mounted Secrets and real-time Kubernetes Secret API watcher via `client-go`.
+  - CLI flags for admission server: `--tls-secret-name`, `--tls-secret-namespace`, and `--tls-reload-interval`.
+  - Fallback and resilience: Retains last known-good certificate upon encountering invalid, corrupted, or mismatched secret data; logs actionable non-sensitive errors without process restarts.
+  - Least privilege RBAC: Helm chart template `role-tls-secret.yaml` restricting Secret access strictly to namespaced `Role` with `resourceNames: ["kubeguard-tls"]` and `get, watch` verbs.
+  - Comprehensive unit test suite (`internal/admission/reloader_test.go`) covering initial load, dynamic rotation, invalid update fallback, rapid succession updates, shutdown, and race condition safety.
+  - Live KinD integration test scenario verifying in-flight TLS certificate reload, zero container restarts, and post-rotation admission interception.
+
+## [0.1.1] - 2026-10-08
+
+### Fixed
+- Upgraded build toolchain to Go 1.27 and patched indirect dependencies (`golang.org/x/net v0.56.0`, `golang.org/x/text v0.39.0`) to resolve 28 CVEs and pass Trivy release security gates.
+
 ## [0.1.0] - 2026-10-05
 
 ### Added

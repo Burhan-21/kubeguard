@@ -265,6 +265,20 @@ jobs:
           echo "=== RBAC Permissions for KubeGuard SA ==="
           kubectl auth can-i --list --as=system:serviceaccount:kubeguard-system:kubeguard
 
+          echo "=== Assert Secret Scoping (Least Privilege) ==="
+          # Allowed to get and watch the configured secret in its own namespace
+          kubectl auth can-i get secret/kubeguard-tls --as=system:serviceaccount:kubeguard-system:kubeguard -n kubeguard-system | grep -i yes
+          kubectl auth can-i watch secret/kubeguard-tls --as=system:serviceaccount:kubeguard-system:kubeguard -n kubeguard-system | grep -i yes
+          # Denied access to other secrets in the same namespace
+          kubectl auth can-i get secret/other-secret --as=system:serviceaccount:kubeguard-system:kubeguard -n kubeguard-system | grep -i no
+          # Denied write/delete access to secrets
+          kubectl auth can-i create secrets --as=system:serviceaccount:kubeguard-system:kubeguard -n kubeguard-system | grep -i no
+          kubectl auth can-i delete secrets --as=system:serviceaccount:kubeguard-system:kubeguard -n kubeguard-system | grep -i no
+          # Denied access to secrets across other namespaces
+          kubectl auth can-i get secrets --as=system:serviceaccount:kubeguard-system:kubeguard -n default | grep -i no
+          kubectl auth can-i get secrets --as=system:serviceaccount:kubeguard-system:kubeguard -n kube-system | grep -i no
+          echo "RBAC LEAST PRIVILEGE CONFIRMED: ServiceAccount can only get/watch kubeguard-tls in kubeguard-system"
+
       - name: Verify SecurityContext & Pod Hardening
         run: |
           echo "=== Pod SecurityContext Verification ==="
@@ -314,7 +328,56 @@ jobs:
           [ "$HTTP_CODE" -eq 400 ] || (echo "Expected HTTP 400 for malformed request, got $HTTP_CODE" && exit 1)
           echo "SAFE ERROR: Malformed request returned HTTP 400 without crashing webhook"
 
-          echo ">>> Scenario 6: Failure Policy Behavior (failurePolicy: Fail)"
+          echo ">>> Scenario 6: Dynamic TLS Certificate Rotation (In-Flight Server Certificate Reload)"
+          KG_POD=$(kubectl get pods -n kubeguard-system -l app.kubernetes.io/name=kubeguard -o jsonpath='{.items[0].metadata.name}')
+          INITIAL_RESTARTS=$(kubectl get pod $KG_POD -n kubeguard-system -o jsonpath='{.status.containerStatuses[0].restartCount}')
+          echo "KubeGuard Pod: $KG_POD, initial container restartCount: $INITIAL_RESTARTS"
+
+          kubectl port-forward -n kubeguard-system svc/kubeguard 28443:443 &
+          PF2_PID=$!
+          sleep 3
+
+          CERT_A_SERIAL=$(echo | openssl s_client -connect localhost:28443 -servername kubeguard.kubeguard-system.svc 2>/dev/null | openssl x509 -noout -serial | cut -d= -f2)
+          echo "Initial Certificate (Cert A) Serial: $CERT_A_SERIAL"
+          [ -n "$CERT_A_SERIAL" ] || (echo "Failed to retrieve Cert A serial!" && exit 1)
+
+          cd ${CERT_DIR}
+          openssl genrsa -out tls-b.key 2048
+          openssl req -new -key tls-b.key -out tls-b.csr -subj "/CN=kubeguard.kubeguard-system.svc" -config csr.conf
+          openssl x509 -req -in tls-b.csr -CA ca.crt -CAkey ca.key -set_serial 0x9999ABCD -out tls-b.crt -days 365 -extensions v3_req -extfile csr.conf
+
+          kubectl create secret tls kubeguard-tls \
+            --cert=tls-b.crt \
+            --key=tls-b.key \
+            -n kubeguard-system \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          echo "Secret kubeguard-tls updated. Waiting for dynamic in-memory reload..."
+          ROTATED=false
+          for i in {1..20}; do
+            CURRENT_SERIAL=$(echo | openssl s_client -connect localhost:28443 -servername kubeguard.kubeguard-system.svc 2>/dev/null | openssl x509 -noout -serial | cut -d= -f2)
+            echo "Attempt $i: Observed TLS serial: $CURRENT_SERIAL"
+            if [ "$CURRENT_SERIAL" = "9999ABCD" ]; then
+              ROTATED=true
+              break
+            fi
+            sleep 1
+          done
+          kill $PF2_PID || true
+
+          [ "$ROTATED" = "true" ] || (echo "FAILED: Webhook did not reload Certificate B within timeout!" && exit 1)
+          echo "DYNAMIC RELOAD CONFIRMED: Webhook served Certificate B (Serial: 9999ABCD) over live TLS connection"
+
+          FINAL_RESTARTS=$(kubectl get pod $KG_POD -n kubeguard-system -o jsonpath='{.status.containerStatuses[0].restartCount}')
+          echo "Pod container restartCount after reload: $FINAL_RESTARTS (initial: $INITIAL_RESTARTS)"
+          [ "$FINAL_RESTARTS" -eq "$INITIAL_RESTARTS" ] || (echo "FAILED: Pod restarted during certificate reload!" && exit 1)
+          echo "ZERO RESTART CONFIRMED: Webhook rotated certificate dynamically without pod restart"
+
+          kubectl apply -f testdata/secure-deployment-rot.yaml -n default
+          kubectl get deployment secure-deployment-rot -n default
+          echo "ADMISSION STILL WORKS: API server successfully intercepted and admitted workload using rotated certificate"
+
+          echo ">>> Scenario 7: Failure Policy Behavior (failurePolicy: Fail)"
           kubectl scale deployment kubeguard -n kubeguard-system --replicas=0
           kubectl wait --namespace kubeguard-system --for=delete pod -l app.kubernetes.io/name=kubeguard --timeout=60s || true
           FAIL_OUTPUT=$(kubectl run test-fail-pod --image=nginx:alpine -n default 2>&1 || true)

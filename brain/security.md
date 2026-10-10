@@ -5,8 +5,9 @@
 This document outlines the security posture of KubeGuard itself, and the boundaries it enforces.
 
 ## 1. Application Security
-- **Least Privilege**: The admission controller RBAC must only request permissions necessary to read policies and handle admission reviews. It must not have arbitrary write access.
-- **Webhook TLS**: All admission controller traffic must be encrypted via strictly validated TLS certificates.
+- **Least Privilege**: The admission controller RBAC must only request permissions necessary to read policies and handle admission reviews. For dynamic TLS certificate rotation, the controller is strictly granted namespaced read-only permissions (`get`, `watch`) on its designated TLS secret (`resourceNames: ["kubeguard-tls"]`). It must never be granted cluster-admin, wildcard write permissions, or Secret access across namespaces.
+- **Webhook TLS & Dynamic Rotation**: All admission controller traffic must be encrypted via strictly validated TLS certificates. Dynamic certificate reload safely validates new x509 key pairs in memory before atomically updating active certificates. If corrupt or invalid Secret data is supplied, the webhook retains the last known-good certificate and emits an actionable error without restarting.
+- **Data Confidentiality & Zero Secret Logging**: Private keys, certificate PEM bytes, and raw Kubernetes Secret data must NEVER be logged or leaked into error messages, audit events, or application logs. Only non-sensitive operational metadata (CommonName, SerialNumber, Expiration timestamp) may be logged.
 - **No Secrets in Code**: Hardcoded credentials are strictly forbidden. Use service accounts, secrets, or environment variables.
 
 ## 2. Threat Modeling & Protections
