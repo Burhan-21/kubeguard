@@ -335,29 +335,33 @@ jobs:
 
           kubectl port-forward -n kubeguard-system svc/kubeguard 28443:443 &
           PF2_PID=$!
-          sleep 3
+          sleep 4
 
-          CERT_A_SERIAL=$(echo | openssl s_client -connect localhost:28443 -servername kubeguard.kubeguard-system.svc 2>/dev/null | openssl x509 -noout -serial | cut -d= -f2)
+          CERT_A_SERIAL=""
+          for i in {1..10}; do
+            CERT_A_SERIAL=$(echo | openssl s_client -connect 127.0.0.1:28443 -servername kubeguard.kubeguard-system.svc 2>/dev/null | openssl x509 -noout -serial 2>/dev/null | cut -d= -f2 || true)
+            if [ -n "$CERT_A_SERIAL" ]; then break; fi
+            sleep 1
+          done
           echo "Initial Certificate (Cert A) Serial: $CERT_A_SERIAL"
           [ -n "$CERT_A_SERIAL" ] || (echo "Failed to retrieve Cert A serial!" && exit 1)
 
-          cd ${CERT_DIR}
-          openssl genrsa -out tls-b.key 2048
-          openssl req -new -key tls-b.key -out tls-b.csr -subj "/CN=kubeguard.kubeguard-system.svc" -config csr.conf
-          openssl x509 -req -in tls-b.csr -CA ca.crt -CAkey ca.key -set_serial 0x9999ABCD -out tls-b.crt -days 365 -extensions v3_req -extfile csr.conf
+          openssl genrsa -out ${CERT_DIR}/tls-b.key 2048
+          openssl req -new -key ${CERT_DIR}/tls-b.key -out ${CERT_DIR}/tls-b.csr -subj "/CN=kubeguard.kubeguard-system.svc" -config ${CERT_DIR}/csr.conf
+          openssl x509 -req -in ${CERT_DIR}/tls-b.csr -CA ${CERT_DIR}/ca.crt -CAkey ${CERT_DIR}/ca.key -set_serial 0x9999ABCD -out ${CERT_DIR}/tls-b.crt -days 365 -extensions v3_req -extfile ${CERT_DIR}/csr.conf
 
           kubectl create secret tls kubeguard-tls \
-            --cert=tls-b.crt \
-            --key=tls-b.key \
+            --cert=${CERT_DIR}/tls-b.crt \
+            --key=${CERT_DIR}/tls-b.key \
             -n kubeguard-system \
             --dry-run=client -o yaml | kubectl apply -f -
 
           echo "Secret kubeguard-tls updated. Waiting for dynamic in-memory reload..."
           ROTATED=false
-          for i in {1..20}; do
-            CURRENT_SERIAL=$(echo | openssl s_client -connect localhost:28443 -servername kubeguard.kubeguard-system.svc 2>/dev/null | openssl x509 -noout -serial | cut -d= -f2)
+          for i in {1..30}; do
+            CURRENT_SERIAL=$(echo | openssl s_client -connect 127.0.0.1:28443 -servername kubeguard.kubeguard-system.svc 2>/dev/null | openssl x509 -noout -serial 2>/dev/null | cut -d= -f2 || true)
             echo "Attempt $i: Observed TLS serial: $CURRENT_SERIAL"
-            if [ "$CURRENT_SERIAL" = "9999ABCD" ]; then
+            if [ "${CURRENT_SERIAL^^}" = "9999ABCD" ]; then
               ROTATED=true
               break
             fi
