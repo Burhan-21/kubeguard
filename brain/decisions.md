@@ -91,6 +91,16 @@
 - **Reason**: Validating admission webhooks do not write mutable state to clusters, rendering leader election unnecessary overhead. Running active-active replicas behind the Kubernetes ClusterIP Service provides true zero-downtime admission availability, seamless rolling restarts, and resilient survival of individual pod terminations.
 - **Status**: Accepted.
 
+## ADR-017: Prometheus Latency Histogram and Deterministic Admission Load Testing
+- **Context**: Operational observability requires standard Prometheus histogram distribution tracking for admission request latencies ($p_{50}, p_{90}, p_{99}$). Furthermore, admission throughput, concurrency ceilings, and replica scaling characteristics must be empirically validated under synthetic and burst workloads without introducing external heavyweight dependencies.
+- **Decision**:
+  1. Implemented standard Prometheus Histogram (`kubeguard_admission_request_duration_seconds`) with standard upper bounds (`le`: 0.001, 0.005, 0.010, 0.025, 0.050, 0.100, 0.250, 0.500, 1.0, `+Inf`) using thread-safe, lock-free `atomic.Uint64` bucket counters, sum, and count. Retained backward-compatible cumulative duration counter `kubeguard_admission_request_duration_seconds_total`.
+  2. Built a deterministic in-tree load generation tool (`test/load/` and `kubeguard load-test` CLI) executing warm-up, sustained, burst, and recovery phases across compliant, denied, and mixed AdmissionReview payloads.
+  3. Structured automated verification into CI: lightweight integration verification in `.github/workflows/ci.yml` (verifying live KinD admission endpoints and histogram population) and a dedicated stress workflow `.github/workflows/load-test.yml` comparing single-replica vs multi-replica scaling performance.
+- **Reason**: Atomic array counters avoid mutex contention in high-concurrency admission handlers. Standard histogram formatting enables native Grafana visualization and Prometheus quantile calculation (`histogram_quantile`). In-tree load generation eliminates dependence on external load tools (e.g. k6, locust) and ensures 100% reproducible benchmark testing across environments.
+- **Status**: Accepted.
+
+
 
 
 

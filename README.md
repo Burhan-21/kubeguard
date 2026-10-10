@@ -336,7 +336,8 @@ kubeguard scan --profile policies/production.yaml examples/kubeguard-self-scan/k
 - **Cluster Integration**: Live admission integration empirically verified across a multi-version Kubernetes matrix (v1.28, v1.29, v1.30, v1.31) on ephemeral KinD clusters in CI. Validated ALLOW, DENY `KG-SEC-001`, WARN, malformed request handling, `failurePolicy: Fail`, in-flight dynamic TLS rotation without pod restart, active-active 2-replica HA, PDB enforcement, single-replica disruption continuity, automatic replacement recovery, zero-downtime rolling update, and in-tree Prometheus metrics.
 - **High Availability & Observability**:
   - **Active-Active Multi-Replica**: Default `replicaCount: 2` with `RollingUpdate` strategy (`maxSurge: 1`, `maxUnavailable: 0`) and `PodDisruptionBudget` (`minAvailable: 1`).
-  - **In-Tree Prometheus Metrics**: Exposed on `/metrics` tracking request counts by decision, latency total, policy errors, certificate reload status, and certificate expiration.
+  - **In-Tree Prometheus Metrics & Histogram**: Exposed on `/metrics` tracking request counts by decision, cumulative duration, policy errors, certificate reload status, certificate expiration, and standard Prometheus latency histogram (`kubeguard_admission_request_duration_seconds`) across standard duration buckets (0.001s to 1.0s and `+Inf`).
+  - **Deterministic Load Testing**: In-tree load suite (`test/load/` and `kubeguard load-test`) evaluating multi-phase synthetic traffic (warm-up, sustained, burst, recovery) with client-measured percentiles ($p_{50}, p_{90}, p_{99}$).
 - **Kubernetes Compatibility Boundary**:
   - **Kubernetes v1.28–v1.31**: **TESTED & PASSING** on live KinD clusters in CI with SHA-256 digest-pinned node images (`v1.28.15`, `v1.29.12`, `v1.30.8`, `v1.31.4`).
   - **Kubernetes < v1.28**: NOT TESTED / Unsupported by design (uses AdmissionReview v1 and modern API conventions).

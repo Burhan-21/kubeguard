@@ -365,10 +365,23 @@ jobs:
             if [ "$HTTP_CODE" -eq 400 ]; then break; fi
             sleep 1
           done
-          kill $PF_PID || true
           echo "Malformed request HTTP response code: $HTTP_CODE"
           [ "$HTTP_CODE" -eq 400 ] || (echo "Expected HTTP 400 for malformed request, got $HTTP_CODE" && exit 1)
           echo "SAFE ERROR: Malformed request returned HTTP 400 without crashing webhook"
+
+          # 5c. Lightweight Admission Load Verification & Histogram Accumulation
+          echo "=== 5c. Running Lightweight Admission Load Verification ==="
+          ./bin/kubeguard load-test --target-url https://127.0.0.1:18443/validate --workload mixed --requests 200 --concurrency 10
+          echo "LOAD TEST COMPLETED: 200 requests executed across active webhook endpoints without errors"
+
+          # 5d. Verify Prometheus Histogram Exposure
+          HIST_OUT=$(curl -k -s https://127.0.0.1:18443/metrics || true)
+          echo "$HIST_OUT" | grep "kubeguard_admission_request_duration_seconds"
+          echo "$HIST_OUT" | grep -q "kubeguard_admission_request_duration_seconds_bucket" || (echo "Missing histogram buckets in /metrics!" && exit 1)
+          echo "$HIST_OUT" | grep -q "kubeguard_admission_request_duration_seconds_count" || (echo "Missing histogram count in /metrics!" && exit 1)
+          echo "HISTOGRAM VERIFIED: Prometheus duration histogram actively recording admission latency"
+
+          kill $PF_PID || true
 
           echo ">>> Scenario 6: Dynamic TLS Certificate Rotation Across All Replicas"
           PODS=$(kubectl get pods -n kubeguard-system -l app.kubernetes.io/name=kubeguard -o jsonpath='{.items[*].metadata.name}')

@@ -21,6 +21,12 @@ type Metrics struct {
 	// Latency tracking (cumulative seconds and count)
 	requestDurationSeconds atomic.Uint64 // stored as microseconds for atomic operations
 
+	// Prometheus standard histogram buckets for admission request duration (seconds)
+	// Buckets: 0.001, 0.005, 0.010, 0.025, 0.050, 0.100, 0.250, 0.500, 1.0, +Inf
+	durationBucketCounts [9]atomic.Uint64
+	durationHistCount    atomic.Uint64
+	durationHistSumNanos atomic.Uint64 // nanoseconds for precision
+
 	// Policy evaluation errors
 	policyErrorsTotal atomic.Uint64
 
@@ -34,6 +40,9 @@ type Metrics struct {
 	// mu guards metric scrape rendering
 	mu sync.RWMutex
 }
+
+// DurationHistogramBuckets defines the upper bounds (in seconds) for admission duration histogram.
+var DurationHistogramBuckets = []float64{0.001, 0.005, 0.010, 0.025, 0.050, 0.100, 0.250, 0.500, 1.0}
 
 var defaultMetrics = NewMetrics()
 
@@ -72,9 +81,25 @@ func (m *Metrics) IncRequestErrorsTotal() {
 	m.requestErrorsTotal.Add(1)
 }
 
-// ObserveRequestDuration records the request duration.
+// ObserveRequestDuration records the request duration across both cumulative counter and standard histogram buckets.
 func (m *Metrics) ObserveRequestDuration(d time.Duration) {
-	m.requestDurationSeconds.Add(uint64(d.Microseconds()))
+	secs := d.Seconds()
+	micros := uint64(d.Microseconds())
+	nanos := uint64(d.Nanoseconds())
+
+	// 1. Maintain backward-compatible cumulative duration counter
+	m.requestDurationSeconds.Add(micros)
+
+	// 2. Histogram count and sum
+	m.durationHistCount.Add(1)
+	m.durationHistSumNanos.Add(nanos)
+
+	// 3. Increment matching histogram buckets
+	for i, upper := range DurationHistogramBuckets {
+		if secs <= upper {
+			m.durationBucketCounts[i].Add(1)
+		}
+	}
 }
 
 // IncPolicyErrorsTotal increments policy engine evaluation errors.
@@ -114,6 +139,14 @@ func (m *Metrics) WritePrometheus(w io.Writer) {
 	reloadFail := m.certReloadFailureTotal.Load()
 	certExp := m.certExpiryTimestamp.Load()
 
+	// Snapshot histogram counters
+	histCount := m.durationHistCount.Load()
+	histSumSecs := float64(m.durationHistSumNanos.Load()) / 1e9
+	var bucketCounts [9]uint64
+	for i := range bucketCounts {
+		bucketCounts[i] = m.durationBucketCounts[i].Load()
+	}
+
 	// Admission requests total by decision
 	fmt.Fprintln(w, "# HELP kubeguard_admission_requests_total Total number of admission requests processed by decision.")
 	fmt.Fprintln(w, "# TYPE kubeguard_admission_requests_total counter")
@@ -127,11 +160,21 @@ func (m *Metrics) WritePrometheus(w io.Writer) {
 	fmt.Fprintln(w, "# TYPE kubeguard_admission_request_errors_total counter")
 	fmt.Fprintf(w, "kubeguard_admission_request_errors_total %d\n", reqErrors)
 
-	// Admission request duration
+	// Admission request duration (backward-compatible counter)
 	durSec := float64(durMicros) / 1000000.0
 	fmt.Fprintln(w, "# HELP kubeguard_admission_request_duration_seconds_total Total duration of admission request processing in seconds.")
 	fmt.Fprintln(w, "# TYPE kubeguard_admission_request_duration_seconds_total counter")
 	fmt.Fprintf(w, "kubeguard_admission_request_duration_seconds_total %.6f\n", durSec)
+
+	// Prometheus standard histogram
+	fmt.Fprintln(w, "# HELP kubeguard_admission_request_duration_seconds Admission request duration histogram in seconds.")
+	fmt.Fprintln(w, "# TYPE kubeguard_admission_request_duration_seconds histogram")
+	for i, upper := range DurationHistogramBuckets {
+		fmt.Fprintf(w, "kubeguard_admission_request_duration_seconds_bucket{le=\"%s\"} %d\n", formatBucketBound(upper), bucketCounts[i])
+	}
+	fmt.Fprintf(w, "kubeguard_admission_request_duration_seconds_bucket{le=\"+Inf\"} %d\n", histCount)
+	fmt.Fprintf(w, "kubeguard_admission_request_duration_seconds_sum %.6f\n", histSumSecs)
+	fmt.Fprintf(w, "kubeguard_admission_request_duration_seconds_count %d\n", histCount)
 
 	// Policy evaluation errors
 	fmt.Fprintln(w, "# HELP kubeguard_policy_errors_total Total number of errors encountered during policy evaluation.")
@@ -153,4 +196,8 @@ func (m *Metrics) WritePrometheus(w io.Writer) {
 	fmt.Fprintln(w, "# HELP kubeguard_webhook_healthy Readiness and health status of the webhook process.")
 	fmt.Fprintln(w, "# TYPE kubeguard_webhook_healthy gauge")
 	fmt.Fprintln(w, "kubeguard_webhook_healthy 1")
+}
+
+func formatBucketBound(f float64) string {
+	return fmt.Sprintf("%.3f", f)
 }
